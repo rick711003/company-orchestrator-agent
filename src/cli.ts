@@ -9,6 +9,7 @@ import { runTeamCommand } from "./commands/team.ts";
 import { runWorkflowCommand } from "./commands/workflow.ts";
 import { runDiscoverCommand } from "./commands/discover.ts";
 import { runQaGateCommand } from "./commands/qa-gate.ts";
+import { runDispatchCommand } from "./commands/dispatch.ts";
 import { createTeamTask } from "./core/team.ts";
 import { createProvider, type ProviderName } from "./providers/index.ts";
 import type { AccessMode } from "./providers/provider.ts";
@@ -34,6 +35,7 @@ Usage:
   company-orchestrator doctor
   company-orchestrator discover [--root <path>] [--depth <0-8>] [--json]
   company-orchestrator qa-gate --workspace <path> --run <id> [--apply]
+  company-orchestrator dispatch --workspace <path> --run <id> [--agents-root <path>] [--execute]
 
 Options:
   -p, --provider <name>  Provider: codex or claude (default: codex)
@@ -89,6 +91,7 @@ function main(args: string[]): void {
     if (args[0] === "doctor") { process.exitCode = runDoctorCommand(); return; }
     if (args[0] === "discover") { process.exitCode = runDiscoverCommand(args.slice(1)); return; }
     if (args[0] === "qa-gate") { process.exitCode = runQaGateCommand(args.slice(1)); return; }
+    if (args[0] === "dispatch") { process.exitCode = runDispatchCommand(args.slice(1)); return; }
     const options = parseArgs(args); if (!options) return;
     validateWorkspace(options.cwd, options.accessMode);
     const provider = createProvider(options.provider); const workflow = getWorkflow(options.workflow);
