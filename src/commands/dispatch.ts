@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
+import { runQaGateCommand } from "./qa-gate.ts";
 
 const agents = [
   { board: "Backend", repo: "backend-engineer-agent", bin: "backend-agent.js", workflow: "api-feature-development", brief: "tasks/backend.md" },
@@ -25,11 +26,18 @@ export function runDispatchCommand(args: string[]): number {
     if (!line || /\[x\]|not applicable/i.test(line)) continue;
     const bin = join(root, agent.repo, "bin", agent.bin); const briefPath = join(run, agent.brief);
     if (!existsSync(bin)) { console.log(`Blocked: ${agent.board} agent CLI not found at ${bin}`); continue; }
-    const task = existsSync(briefPath) ? readFileSync(briefPath, "utf8") : `Implement the ${agent.board} scope in ${join(run, "FEATURE_CONTRACT.md")}.`;
+    const brief = existsSync(briefPath) ? readFileSync(briefPath, "utf8") : `Implement the ${agent.board} scope in ${join(run, "FEATURE_CONTRACT.md")}.`;
+    const task = `${brief}\n\nCompletion protocol: when implementation and tests are complete, write ${join(run, `PRODUCT_HANDOFF.${agent.board.toLowerCase()}.md`)} containing changed files, test evidence, API-contract changes, blockers, and ready-for-qa status. Then change this exact Delivery Board line to [x]: ${line}`;
     const command = [bin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", agent.workflow, task];
     console.log(`${execute ? "Starting" : "Preview"}: node ${command.map((part) => JSON.stringify(part)).join(" ")}`);
     if (execute) { const result = spawnSync("node", command, { stdio: "inherit" }); if (result.status !== 0) process.exitCode = 1; }
     started += 1;
   }
-  console.log(`${execute ? "Started" : "Would start"} ${started} development agent(s).`); return typeof process.exitCode === "number" ? process.exitCode : 0;
+  console.log(`${execute ? "Started" : "Would start"} ${started} development agent(s).`);
+  if (execute && started > 0 && !process.exitCode) {
+    const gate = runQaGateCommand(["--workspace", workspace, "--run", runId, "--apply"]);
+    if (gate === 2) console.log("QA remains blocked until required PRODUCT_HANDOFFs update the Delivery Board.");
+    else if (gate !== 0) process.exitCode = gate;
+  }
+  return typeof process.exitCode === "number" ? process.exitCode : 0;
 }
