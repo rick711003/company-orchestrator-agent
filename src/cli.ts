@@ -7,6 +7,7 @@ import { runDoctorCommand } from "./commands/doctor.ts";
 import { runTeamRunCommand } from "./commands/run.ts";
 import { runTeamCommand } from "./commands/team.ts";
 import { runWorkflowCommand } from "./commands/workflow.ts";
+import { runDiscoverCommand } from "./commands/discover.ts";
 import { createTeamTask } from "./core/team.ts";
 import { createProvider, type ProviderName } from "./providers/index.ts";
 import type { AccessMode } from "./providers/provider.ts";
@@ -30,6 +31,7 @@ Usage:
   company-orchestrator run status <id>
   company-orchestrator run list
   company-orchestrator doctor
+  company-orchestrator discover [--root <path>] [--depth <0-8>] [--json]
 
 Options:
   -p, --provider <name>  Provider: codex or claude (default: codex)
@@ -83,6 +85,7 @@ function main(args: string[]): void {
     if (args[0] === "team") { process.exitCode = runTeamCommand(args.slice(1)); return; }
     if (args[0] === "run") { process.exitCode = runTeamRunCommand(args.slice(1)); return; }
     if (args[0] === "doctor") { process.exitCode = runDoctorCommand(); return; }
+    if (args[0] === "discover") { process.exitCode = runDiscoverCommand(args.slice(1)); return; }
     const options = parseArgs(args); if (!options) return;
     validateWorkspace(options.cwd, options.accessMode);
     const provider = createProvider(options.provider); const workflow = getWorkflow(options.workflow);
