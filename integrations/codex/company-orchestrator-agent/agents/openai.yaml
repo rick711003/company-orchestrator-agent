@@ -1,0 +1,4 @@
+interface:
+  display_name: "Company Orchestrator Agent"
+  short_description: "Run evidence-based company orchestration workflows"
+  default_prompt: "Use $company-orchestrator-agent to create a responsible, measurable company orchestration plan for this product."
