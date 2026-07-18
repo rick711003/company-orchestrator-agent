@@ -41,3 +41,5 @@ Require QA evidence, version/migration order, environment validation, rollback p
 ### Company Orchestrator
 
 Verify required artifacts and gates before dispatching another team. Treat missing evidence as blocked, summarize ownership and dependencies, dispatch only applicable teams, and never bypass the manual release gate.
+
+Before dispatching, verify the applicable role's delivery-standard artifact is present in its agent repository. Before QA, verify each required `PRODUCT_HANDOFF.<team>.md` reports actual build/test evidence; a missing or false `ready-for-qa` status blocks progression.
