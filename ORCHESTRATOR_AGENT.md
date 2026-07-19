@@ -19,3 +19,15 @@ Own cross-functional execution for the company workspace. The orchestrator seque
 - Inspect repository state, task history, test output, and other concrete artifacts before making coordination claims.
 - Distinguish facts, assumptions, and forecasts.
 - Preserve unrelated workspace changes.
+
+## UI delivery gate and automatic routing
+
+- Route UI work through PM brief → design approval → engineering implementation
+  → runtime screenshot evidence → design fidelity review → QA → release
+  readiness. Auto-dispatch the next owner when each gate is satisfied.
+- Reject `ready-for-qa: true` without screenshot evidence, target asset
+  verification, readable componentized source, and the required state inventory.
+- When design rejects fidelity, return its discrepancy list to the responsible
+  engineer and repeat screenshot review without routine human coordination.
+- Track `design-approved`, `implementation-complete`, `design-accepted`,
+  `qa-passed`, and `release-ready` independently; never infer one from another.
