@@ -65,6 +65,8 @@ const HANDOFF_LIMIT = 24_000;
 function createCrossFunctionalArtifacts(workspace: string, runId: string, task: string): void {
   const directory = runDirectory(workspace, runId);
   const files: Record<string, string> = {
+    "PRD.md": `# Product Requirements Document\n\nStatus: draft\n\nTask: ${task}\n\n## Problem, users, outcome, scope, rules, platforms, metrics, and decisions\n`,
+    "USER_STORIES.md": "# User Stories and Acceptance Criteria\n\nStatus: draft\n\n- Requirement ID:\n- Story:\n- Acceptance criteria:\n- Surface/state IDs:\n",
     "FEATURE_CONTRACT.md": `# Feature Contract\n\nTask: ${task}\n\n## Outcome\n\n## Scope and non-goals\n\n## User stories and acceptance criteria\n\n## Shared states\n\n## Owners and decisions\n`,
     "tasks/frontend.md": "# Frontend Task Brief\n\n## UI scope\n\n## API integration\n\n## States and acceptance criteria\n",
     "tasks/backend.md": "# Backend Task Brief\n\n## Domain and API scope\n\n## Validation, authorization, errors\n\n## Data and migration considerations\n",
@@ -75,6 +77,9 @@ function createCrossFunctionalArtifacts(workspace: string, runId: string, task: 
     "tasks/release.md": "# Release Task Brief\n\n## Artifact and store validation\n\n## Rollback and observability\n\n## Manual release gate\n",
     "tasks/growth.md": "# Growth Task Brief\n\n## Approved claims and assets\n\n## Measurement and consent\n\n## Launch dependencies\n",
     "SURFACE_INVENTORY.md": "# Surface Inventory\n\n| Surface/state | Platform | Owner | Design | Tokens/assets | Runtime ID | Screenshot | Test | Design acceptance | QA | Release |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n",
+    "DESIGN_FLOW.md": "# Design Flow\n\nStatus: awaiting-design\n\n## Requirement/surface traceability and all flow branches\n\n## Onboarding and contextual learnability\n\nCover clean install, activation, empty/sample data, permissions, skip/back/resume, recovery, help re-entry, localization, accessibility, and device/viewport variants.\n",
+    "DESIGN_SPEC.md": "# Design Specification\n\nStatus: awaiting-design\n\n## Mockups, tokens, assets, variants, and behavior\n",
+    "QA_TEST_SPEC.md": "# QA Test Specification\n\nStatus: awaiting-qa\n\n## Requirement/flow/surface traceability and test cases\n\n## Clean-install and no-prior-knowledge validation\n",
     "API_CONTRACT.yaml": "version: 1\nendpoints: []\nevents: []\nauthentication: {}\nerrors: []\n",
     "DEPENDENCY_MAP.md": "# Dependency Map\n\nProduct scope → Design inventory/tokens/assets + Backend contract → FE/iOS/Android implementation → runtime Design acceptance → QA → Release validation → manual production release\n",
     "RELEASE_CHECKLIST.md": "# Release Checklist\n\n- [ ] Surface Inventory complete\n- [ ] Design tokens and asset manifest approved\n- [ ] Applicable FE, BE, iOS, and Android handoffs accepted\n- [ ] Runtime Design acceptance recorded\n- [ ] QA passed\n- [ ] Final artifacts, analytics, rollback, and store metadata validated\n- [ ] Human approved production release\n",
