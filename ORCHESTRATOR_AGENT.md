@@ -31,3 +31,14 @@ Own cross-functional execution for the company workspace. The orchestrator seque
   engineer and repeat screenshot review without routine human coordination.
 - Track `design-approved`, `implementation-complete`, `design-accepted`,
   `qa-passed`, and `release-ready` independently; never infer one from another.
+
+## Engineering source quality gate
+
+- Require every engineering lane to commit its ecosystem formatter/linter
+  configuration and expose a repeatable check command covering production and
+  test source.
+- Reject implementation handoff when formatter or linter output is missing,
+  fails, or reveals compressed one-line source. Compilation never overrides
+  readability failure.
+- Apply the same gate to iOS, Android, frontend, backend, scripts, migrations,
+  and tests, using the native tooling for each ecosystem.
