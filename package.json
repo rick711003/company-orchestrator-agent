@@ -5,7 +5,7 @@
   "description": "A CLI-driven company orchestration team powered by Claude or Codex.",
   "type": "module",
   "bin": {
-    "company-orchestrator-agent": "./bin/company-orchestrator-agent.js"
+    "company-orchestrator-agent": "./bin/company-orchestrator.js"
   },
   "files": [
     "bin",
@@ -15,10 +15,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepack": "npm run build",
-    "start": "npm run build --silent && node bin/company-orchestrator-agent.js",
-    "check": "npm run build --silent && node bin/company-orchestrator-agent.js --help",
+    "start": "npm run build --silent && node bin/company-orchestrator.js",
+    "check": "npm run build --silent && node bin/company-orchestrator.js --help",
     "test": "node --test",
-    "smoke": "npm run build --silent && node bin/company-orchestrator-agent.js --version && node bin/company-orchestrator-agent.js team show",
+    "smoke": "npm run build --silent && node bin/company-orchestrator.js --version && node bin/company-orchestrator.js team show",
     "verify": "npm run build && npm test && npm run check && npm run smoke && npm pack --dry-run --cache .npm-cache"
   },
   "engines": {

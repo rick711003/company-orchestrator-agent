@@ -69,10 +69,15 @@ function createCrossFunctionalArtifacts(workspace: string, runId: string, task: 
     "tasks/frontend.md": "# Frontend Task Brief\n\n## UI scope\n\n## API integration\n\n## States and acceptance criteria\n",
     "tasks/backend.md": "# Backend Task Brief\n\n## Domain and API scope\n\n## Validation, authorization, errors\n\n## Data and migration considerations\n",
     "tasks/ios.md": "# iOS Task Brief\n\n## Screen and flow scope\n\n## API integration\n\n## States and acceptance criteria\n",
+    "tasks/android.md": "# Android Task Brief\n\n## Screen and flow scope\n\n## API integration\n\n## States and acceptance criteria\n",
+    "tasks/design.md": "# Design Task Brief\n\n## Surface and state inventory\n\n## Typography and component tokens\n\n## Asset manifest and runtime acceptance\n",
     "tasks/qa.md": "# QA Task Brief\n\n## Acceptance tests\n\n## Regression and edge cases\n\n## Release gates\n",
+    "tasks/release.md": "# Release Task Brief\n\n## Artifact and store validation\n\n## Rollback and observability\n\n## Manual release gate\n",
+    "tasks/growth.md": "# Growth Task Brief\n\n## Approved claims and assets\n\n## Measurement and consent\n\n## Launch dependencies\n",
+    "SURFACE_INVENTORY.md": "# Surface Inventory\n\n| Surface/state | Platform | Owner | Design | Tokens/assets | Runtime ID | Screenshot | Test | Design acceptance | QA | Release |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n",
     "API_CONTRACT.yaml": "version: 1\nendpoints: []\nevents: []\nauthentication: {}\nerrors: []\n",
-    "DEPENDENCY_MAP.md": "# Dependency Map\n\nProduct contract → Backend API contract → Frontend/iOS integration → QA validation → Release\n",
-    "RELEASE_CHECKLIST.md": "# Release Checklist\n\n- [ ] API contract approved\n- [ ] FE and iOS integration validated\n- [ ] Authorization and migration risks reviewed\n- [ ] QA acceptance criteria passed\n- [ ] Analytics and rollback plan ready\n",
+    "DEPENDENCY_MAP.md": "# Dependency Map\n\nProduct scope → Design inventory/tokens/assets + Backend contract → FE/iOS/Android implementation → runtime Design acceptance → QA → Release validation → manual production release\n",
+    "RELEASE_CHECKLIST.md": "# Release Checklist\n\n- [ ] Surface Inventory complete\n- [ ] Design tokens and asset manifest approved\n- [ ] Applicable FE, BE, iOS, and Android handoffs accepted\n- [ ] Runtime Design acceptance recorded\n- [ ] QA passed\n- [ ] Final artifacts, analytics, rollback, and store metadata validated\n- [ ] Human approved production release\n",
   };
   for (const [name, content] of Object.entries(files)) { const path = join(directory, name); mkdirSync(join(path, ".."), { recursive: true }); writeFileSync(path, content); }
 }

@@ -24,7 +24,7 @@ export function runQaGateCommand(args: string[]): number {
   const missingEvidence = requiredTeams.filter((team) => { const handoff = join(directory, `PRODUCT_HANDOFF.${team}.md`); return !existsSync(handoff) || !/ready-for-qa:\s*true/i.test(readFileSync(handoff, "utf8")); });
   if (missingEvidence.length > 0) { console.log(`QA blocked by missing or not-ready handoffs: ${missingEvidence.join(", ")}`); return 2; }
   const requestPath = join(directory, "QA_REQUEST.md");
-  const request = `# QA Request\n\nStatus: ready-for-qa\n\n## Required evidence\n\n- [ ] FEATURE_CONTRACT.md\n- [ ] API_CONTRACT.yaml\n- [ ] tasks/frontend.md, tasks/backend.md, tasks/ios.md, tasks/qa.md as applicable\n- [ ] PRODUCT_HANDOFF from each applicable development team\n- [ ] DELIVERY_BOARD.md\n- [ ] RELEASE_CHECKLIST.md\n\nRun QA with: \`qa-agent run start --workflow full-stack-integration\` and attach results before changing this feature to qa-passed.\n`;
+  const request = `# QA Request\n\nStatus: ready-for-qa\n\n## Required evidence\n\n- [ ] FEATURE_CONTRACT.md and complete SURFACE_INVENTORY.md\n- [ ] API_CONTRACT.yaml\n- [ ] applicable Design, FE, BE, iOS, Android, QA, Release, and Growth briefs\n- [ ] PRODUCT_HANDOFF from each applicable development team\n- [ ] runtime screenshots with design-accepted: true for every applicable surface row\n- [ ] DELIVERY_BOARD.md\n- [ ] RELEASE_CHECKLIST.md\n\nRun QA with: \`qa-agent run start --workflow full-stack-integration\` and attach results before changing this feature to qa-passed.\n`;
   if (!apply) { console.log(`QA is ready. Preview only; re-run with --apply to create ${requestPath}`); return 0; }
   writeFileSync(requestPath, request); console.log(`Created QA request: ${requestPath}`); return 0;
 }
