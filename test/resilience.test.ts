@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -24,6 +24,17 @@ test("dead stale dispatch lock is recovered atomically", () => {
     writeFileSync(join(directory, "DISPATCH_LOCK.json"), JSON.stringify({ pid: 999_999_999, createdAt: "2000-01-01T00:00:00.000Z" }));
     const lock = acquireDispatchLock(directory, 1);
     lock.release();
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test("an old lock owner cannot release a replacement owner lock", () => {
+  const directory = mkdtempSync(join(tmpdir(), "dispatch-lock-owner-"));
+  const path = join(directory, "DISPATCH_LOCK.json");
+  try {
+    const first = acquireDispatchLock(directory);
+    writeFileSync(path, JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString(), token: "replacement" }));
+    first.release();
+    assert.match(readFileSync(path, "utf8"), /replacement/);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
