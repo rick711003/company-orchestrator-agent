@@ -6,7 +6,12 @@ import test from "node:test";
 import { runDispatchCommand } from "../src/commands/dispatch.ts";
 import { buildDeliveryStatus } from "../src/commands/delivery-status.ts";
 
-type Scenario = { product: "accept" | "reject" | "crash-once"; design: "accept" | "reject"; qa: "pass" | "fail" };
+type Scenario = {
+  product: "accept" | "reject" | "crash-once";
+  design: "accept" | "reject";
+  qa: "pass" | "fail";
+  frontend?: "pass" | "fail-once" | "hang-once";
+};
 
 function write(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true });
@@ -25,15 +30,25 @@ const runs = path.join(cwd, ".product-manager-agent", "runs");
 const run = fs.readdirSync(runs)[0];
 const dir = path.join(runs, run);
 const scenario = JSON.parse(fs.readFileSync(path.join(cwd, "scenario.json"), "utf8"));
+if (process.env.COMPANY_EXTERNAL_ACTIONS !== "deny" || process.env.COMPANY_PRODUCTION_ACTIONS !== "deny" || process.env.GH_TOKEN) process.exit(12);
+fs.appendFileSync(path.join(cwd, "agent-invocations.log"), ${JSON.stringify(role)} + ":" + workflow + "\\n");
 const put = (name, value) => fs.writeFileSync(path.join(dir, name), value);
 const boardPath = path.join(dir, "DELIVERY_BOARD.md");
 const check = (label) => fs.writeFileSync(boardPath, fs.readFileSync(boardPath, "utf8").replace("- [ ] " + label, "- [x] " + label));
 if (${JSON.stringify(role)} === "design" && workflow === "product-feature") {
   put("DESIGN_FLOW.md", "status: design-approved\\n");
   put("DESIGN_SPEC.md", "status: design-approved\\n");
-  put("PRODUCT_HANDOFF.design.md", "design-approved: true\\nflow-evidence: flow\\nmockup-evidence: mockup\\n");
+  put("PRODUCT_HANDOFF.design.md", "design-approved: true\\nflow-evidence: flow\\nmockup-evidence: mockup\\ndesign-version: design-v1\\n");
   check("Design —");
 } else if (["backend", "frontend", "ios", "android"].includes(${JSON.stringify(role)})) {
+  if (${JSON.stringify(role)} === "frontend" && scenario.frontend && scenario.frontend !== "pass") {
+    const marker = path.join(cwd, "frontend-" + scenario.frontend);
+    if (!fs.existsSync(marker)) {
+      fs.writeFileSync(marker, "injected once\\n");
+      if (scenario.frontend === "hang-once") Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10000);
+      else process.exit(7);
+    }
+  }
   const label = ${JSON.stringify(role)} === "ios" ? "iOS" : ${JSON.stringify(role)}[0].toUpperCase() + ${JSON.stringify(role)}.slice(1);
   put("TECHNICAL_PLAN." + ${JSON.stringify(role)} + ".md", "requirement: R-1\\n");
   put("TASK_LEDGER." + ${JSON.stringify(role)} + ".md", "status: completed\\n");
@@ -45,19 +60,19 @@ if (${JSON.stringify(role)} === "design" && workflow === "product-feature") {
     fs.writeFileSync(crashMarker, "crashed\\n");
     process.exit(7);
   }
-  put("PRODUCT_HANDOFF.pm-runtime.md", "product-accepted: " + (scenario.product !== "reject") + "\\nrequirement-evidence: R-1\\n");
+  put("PRODUCT_HANDOFF.pm-runtime.md", "product-accepted: " + (scenario.product !== "reject") + "\\nrequirement-traceability: R-1\\nruntime-evidence: runtime.png\\n");
 } else if (${JSON.stringify(role)} === "design" && workflow === "runtime-acceptance") {
-  put("PRODUCT_HANDOFF.design-runtime.md", "design-accepted: " + (scenario.design === "accept") + "\\nruntime-evidence: runtime.png\\n");
+  put("PRODUCT_HANDOFF.design-runtime.md", "design-accepted: " + (scenario.design === "accept") + "\\nsurface-traceability: settings.alert\\nruntime-evidence: runtime.png\\n");
   if (scenario.design === "accept") put("SURFACE_INVENTORY.md", "| Surface/state | Platform | Owner | Design | Tokens/assets | Runtime ID | Screenshot | Test | Design acceptance | QA | Release |\\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\\n| settings.alert | iOS | iOS | design-v1 | tokens-v1 | runtime.id | runtime.png | UI-1 | accepted | pending | pending |\\n");
 } else if (${JSON.stringify(role)} === "qa") {
   put("QA_TEST_SPEC.md", "status: qa-approved\\nrequirement: R-1\\n");
   put("PRODUCT_HANDOFF.qa.md", "qa-passed: " + (scenario.qa === "pass") + "\\ntest-spec-evidence: QA_TEST_SPEC.md\\ntest-evidence: qa.log\\nrelease-ready: " + (scenario.qa === "pass") + "\\n");
 } else if (${JSON.stringify(role)} === "release") {
   if (!task.includes("never publish")) process.exit(9);
-  put("PRODUCT_HANDOFF.release.md", "release-validated: true\\nstatus: awaiting-manual-release\\nartifact-evidence: archive\\n");
+  put("PRODUCT_HANDOFF.release.md", "release-validated: true\\nstatus: awaiting-manual-release\\nartifact-evidence: archive\\ngate-traceability: R-1\\n");
 } else if (${JSON.stringify(role)} === "growth") {
   if (!task.includes("never publish") || !task.includes("never publish, contact anyone, spend money")) process.exit(9);
-  put("PRODUCT_HANDOFF.growth.md", "campaign-ready: true\\nstatus: awaiting-human-approval\\nclaims-evidence: R-1\\n");
+  put("PRODUCT_HANDOFF.growth.md", "campaign-ready: true\\nstatus: awaiting-human-approval\\naudience: ledger users\\nclaims-evidence: R-1\\napproved-asset-references: design-v1\\nchannels: app store draft\\nmeasurement: activation\\nprivacy-consent-constraints: no contact\\n");
 }
 `;
 }
@@ -84,8 +99,10 @@ function fixture(scenario: Scenario): { root: string; workspace: string; run: st
   return { root, workspace, run, cleanup: () => rmSync(root, { recursive: true, force: true }) };
 }
 
-function dispatch(setup: { root: string; workspace: string; run: string }): number {
-  return runDispatchCommand(["--workspace", setup.workspace, "--agents-root", setup.root, "--run", setup.run, "--execute"]);
+function dispatch(setup: { root: string; workspace: string; run: string }, timeoutMs?: number): number {
+  const args = ["--workspace", setup.workspace, "--agents-root", setup.root, "--run", setup.run, "--execute"];
+  if (timeoutMs) args.push("--agent-timeout-ms", String(timeoutMs));
+  return runDispatchCommand(args);
 }
 
 test("ten-role delivery reaches release validation without crossing production gate", () => {
@@ -155,6 +172,56 @@ test("an interrupted role run resumes without repeating completed Engineering wo
     assert.equal(dispatch(setup), 0);
     assert.equal(readFileSync(join(run, "TASK_LEDGER.ios.md"), "utf8"), before);
     assert.match(readFileSync(join(run, "PRODUCT_HANDOFF.release.md"), "utf8"), /release-validated: true/);
+  } finally { setup.cleanup(); }
+});
+
+test("partial Engineering failure reruns only the failed Frontend team", () => {
+  const setup = fixture({ product: "accept", design: "accept", qa: "pass", frontend: "fail-once" });
+  try {
+    assert.equal(dispatch(setup), 1);
+    assert.equal(dispatch(setup), 0);
+    const invocations = readFileSync(join(setup.workspace, "agent-invocations.log"), "utf8");
+    assert.equal(invocations.match(/backend:api-feature-development/g)?.length, 1);
+    assert.equal(invocations.match(/frontend:web-feature-development/g)?.length, 2);
+    assert.equal(invocations.match(/ios:feature-development/g)?.length, 1);
+    assert.equal(invocations.match(/android:android-feature-development/g)?.length, 1);
+  } finally { setup.cleanup(); }
+});
+
+test("hung Engineering process times out and resumes only that team", () => {
+  const setup = fixture({ product: "accept", design: "accept", qa: "pass", frontend: "hang-once" });
+  try {
+    assert.equal(dispatch(setup, 100), 1);
+    assert.equal(dispatch(setup, 100), 0);
+    const invocations = readFileSync(join(setup.workspace, "agent-invocations.log"), "utf8");
+    assert.equal(invocations.match(/frontend:web-feature-development/g)?.length, 2);
+    assert.equal(invocations.match(/backend:api-feature-development/g)?.length, 1);
+  } finally { setup.cleanup(); }
+});
+
+test("duplicate dispatch skips every role when version fingerprints are current", () => {
+  const setup = fixture({ product: "accept", design: "accept", qa: "pass" });
+  try {
+    assert.equal(dispatch(setup), 0);
+    const before = readFileSync(join(setup.workspace, "agent-invocations.log"), "utf8");
+    assert.equal(dispatch(setup), 0);
+    assert.equal(readFileSync(join(setup.workspace, "agent-invocations.log"), "utf8"), before);
+  } finally { setup.cleanup(); }
+});
+
+test("changed PRD invalidates stale Product, Design, QA, Release, and Growth approvals", () => {
+  const setup = fixture({ product: "accept", design: "accept", qa: "pass" });
+  try {
+    assert.equal(dispatch(setup), 0);
+    const prd = join(setup.workspace, ".product-manager-agent", "runs", setup.run, "PRD.md");
+    write(prd, `${readFileSync(prd, "utf8")}R-2: changed behavior\\n`);
+    assert.equal(dispatch(setup), 0);
+    const invocations = readFileSync(join(setup.workspace, "agent-invocations.log"), "utf8");
+    assert.equal(invocations.match(/product:implementation-acceptance/g)?.length, 2);
+    assert.equal(invocations.match(/design:runtime-acceptance/g)?.length, 2);
+    assert.equal(invocations.match(/qa:feature-validation/g)?.length, 2);
+    assert.equal(invocations.match(/release:release-planning/g)?.length, 2);
+    assert.equal(invocations.match(/growth:launch-campaign/g)?.length, 2);
   } finally { setup.cleanup(); }
 });
 

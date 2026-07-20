@@ -23,6 +23,7 @@ node bin/company-orchestrator.js dispatch \
   --workspace ../MyProduct \
   --run RUN_ID \
   --agents-root .. \
+  --agent-timeout-ms 1800000 \
   --execute
 node bin/company-orchestrator.js delivery-status \
   --workspace ../MyProduct \
@@ -36,6 +37,18 @@ Each run persists `AUTOMATION_STATE.json` and `NOTIFICATION_LOG.md`. Three
 consecutive rejections at the same gate produce a systemic-failure event without
 converting rejection into approval.
 
+Dispatch is crash-resumable and guarded by an atomic per-run lock. Completed teams
+are checkpointed independently, so a failed or timed-out Frontend run does not rerun
+successful Backend, iOS, or Android work. Accepted artifacts carry SHA-256 input
+fingerprints; changing an authoritative requirement or design/API contract makes
+dependent approvals stale and reopens only the affected stages.
+
+Role processes use a fixed working directory without a shell, receive a bounded
+timeout, and do not inherit deployment, source-control, payment, messaging, or cloud
+credentials. Hard capability flags deny external and production actions. This is a
+defense layer in addition to each provider's workspace sandbox; production release
+and external actions still require an explicit human gate.
+
 ## Verification
 
 ```bash
@@ -43,5 +56,7 @@ npm run verify
 ```
 
 The suite includes deterministic company integration tests for happy-path delivery,
-Product rejection and recovery, Design/QA rejection, interruption recovery, retry
-limits, Growth handoff, notification routing, and the manual production boundary.
+Product rejection and recovery, Design/QA rejection, interruption and timeout
+recovery, duplicate dispatch locking, stale approval invalidation, partial Engineering
+retry, artifact schema enforcement, credential isolation, retry limits, Growth handoff,
+notification routing, and the manual production boundary.

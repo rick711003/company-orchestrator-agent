@@ -36,7 +36,7 @@ Usage:
   company-orchestrator doctor
   company-orchestrator discover [--root <path>] [--depth <0-8>] [--json]
   company-orchestrator qa-gate --workspace <path> --run <id> [--apply]
-  company-orchestrator dispatch --workspace <path> --run <id> [--agents-root <path>] [--execute]
+  company-orchestrator dispatch --workspace <path> --run <id> [--agents-root <path>] [--agent-timeout-ms <ms>] [--execute]
   company-orchestrator delivery-status --workspace <path> --run <id> [--json]
 
 Options:

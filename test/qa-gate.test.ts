@@ -13,8 +13,8 @@ function fixture(inventory: string, handoff: string): { workspace: string; run: 
   writeFileSync(directory + "/DELIVERY_BOARD.md", "## Development\n\n- [x] iOS — owner: iOS Agent\n\n## QA\n");
   writeFileSync(directory + "/SURFACE_INVENTORY.md", inventory);
   writeFileSync(directory + "/PRODUCT_HANDOFF.ios.md", handoff);
-  writeFileSync(directory + "/PRODUCT_HANDOFF.pm-runtime.md", "product-accepted: true\n");
-  writeFileSync(directory + "/PRODUCT_HANDOFF.design-runtime.md", "design-accepted: true\n");
+  writeFileSync(directory + "/PRODUCT_HANDOFF.pm-runtime.md", "product-accepted: true\nrequirement-traceability: R-1\nruntime-evidence: runtime.png\n");
+  writeFileSync(directory + "/PRODUCT_HANDOFF.design-runtime.md", "design-accepted: true\nsurface-traceability: settings.alert\nruntime-evidence: runtime.png\n");
   return { workspace, run };
 }
 

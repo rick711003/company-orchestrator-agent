@@ -1,5 +1,12 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { artifactFindings, type ArtifactContract } from "../core/artifact-contract.ts";
+
+const engineeringContract: ArtifactContract = {
+  required: ["runtime-evidence", "test-evidence", "file-size-evidence", "ready-for-design-review"],
+  trueFields: ["ready-for-design-review"],
+  forbidden: ["design-accepted", "ready-for-qa", "qa-passed", "release-validated"],
+};
 
 function value(args: string[], index: number, option: string): string {
   const result = args[index + 1];
@@ -89,12 +96,7 @@ export function runQaGateCommand(args: string[]): number {
   });
   const missingEvidence = requiredTeams.filter((team) => {
     const handoff = join(directory, `PRODUCT_HANDOFF.${team}.md`);
-    if (!existsSync(handoff)) return true;
-    const content = readFileSync(handoff, "utf8");
-    return !/ready-for-design-review:\s*true/i.test(content)
-      || !/runtime-evidence:\s*\S+/i.test(content)
-      || !/test-evidence:\s*\S+/i.test(content)
-      || !/file-size-evidence:\s*\S+/i.test(content);
+    return artifactFindings(handoff, engineeringContract).length > 0;
   });
   if (missingEvidence.length > 0) {
     console.log(`QA blocked by incomplete handoffs: ${missingEvidence.join(", ")}`);
@@ -102,19 +104,19 @@ export function runQaGateCommand(args: string[]): number {
   }
 
   const productRuntimeHandoff = join(directory, "PRODUCT_HANDOFF.pm-runtime.md");
-  if (
-    !existsSync(productRuntimeHandoff)
-    || !/product-accepted:\s*true/i.test(readFileSync(productRuntimeHandoff, "utf8"))
-  ) {
+  if (artifactFindings(productRuntimeHandoff, {
+    required: ["requirement-traceability", "runtime-evidence", "product-accepted"],
+    trueFields: ["product-accepted"],
+  }).length > 0) {
     console.log("QA blocked: independent Product implementation acceptance is missing or rejected.");
     return 2;
   }
 
   const designRuntimeHandoff = join(directory, "PRODUCT_HANDOFF.design-runtime.md");
-  if (
-    !existsSync(designRuntimeHandoff)
-    || !/design-accepted:\s*true/i.test(readFileSync(designRuntimeHandoff, "utf8"))
-  ) {
+  if (artifactFindings(designRuntimeHandoff, {
+    required: ["surface-traceability", "runtime-evidence", "design-accepted"],
+    trueFields: ["design-accepted"],
+  }).length > 0) {
     console.log("QA blocked: independent runtime Design acceptance is missing or rejected.");
     return 2;
   }

@@ -25,4 +25,8 @@ test("dispatch includes iOS, Android, Web, and Backend in the same evidence loop
   assert.match(source, /awaiting-manual-release/);
   assert.match(source, /campaign-ready/);
   assert.match(source, /never publish, contact anyone, spend money/);
+  assert.match(source, /acquireDispatchLock/);
+  assert.match(source, /artifactFingerprint/);
+  assert.match(source, /agentTimeoutMs/);
+  assert.match(source, /pendingDevelopment/);
 });
