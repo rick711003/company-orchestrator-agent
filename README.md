@@ -1,37 +1,47 @@
 # Company Orchestrator Agent
 
-A persistent command-line company orchestration team powered by Codex or Claude Code. It turns product and market questions into auditable market research, positioning, ASO/content drafts, company orchestration experiments, measurement plans, and launch recommendations.
+The coordination layer for a ten-role software company: Product, Design, Backend,
+Frontend, iOS, Android, QA, Release, Growth, and Orchestration.
 
-## Workflows
+## Delivery loop
 
-- `market-discovery` — customer segments, competitors, positioning, and measurement
-- `company orchestration-experiment` — acquisition, activation, retention, or referral experiments
-- `launch-campaign` — approval-ready launch plans, content drafts, ASO, and analytics
+`PM contract → Design contract → Engineering → Product acceptance → runtime Design acceptance → QA → Release validation → Growth draft → human release/external-action gate`
 
-The team includes a Product Lead, Market Researcher, Product Marketer, Product Analyst, and Product Reviewer. It never publishes content, spends money, contacts customers, or changes campaigns without human approval.
+Internal planning, implementation, testing, independent review, notifications, and
+rework use `--auto-approve`. Production deployment, store submission, spending,
+external contact, destructive production data changes, and Growth publication remain
+human-controlled.
 
-## Install
+## Commands
 
 ```bash
-git clone git@github.com:rick711003/company-orchestrator-agent.git
-cd company-orchestrator-agent
 npm install
 npm run build
-npm link
-company-orchestrator-agent doctor
+
+node bin/company-orchestrator.js discover --root ..
+node bin/company-orchestrator.js dispatch \
+  --workspace ../MyProduct \
+  --run RUN_ID \
+  --agents-root .. \
+  --execute
+node bin/company-orchestrator.js delivery-status \
+  --workspace ../MyProduct \
+  --run RUN_ID
+node bin/company-orchestrator.js qa-gate \
+  --workspace ../MyProduct \
+  --run RUN_ID
 ```
 
-## Run
+Each run persists `AUTOMATION_STATE.json` and `NOTIFICATION_LOG.md`. Three
+consecutive rejections at the same gate produce a systemic-failure event without
+converting rejection into approval.
 
-```bash
-company-orchestrator-agent run start --dry-run --cwd ../MyProduct --workflow market-discovery "Find the strongest launch audience for our iOS app"
-company-orchestrator-agent run start --write --auto-approve --cwd ../MyProduct --workflow company orchestration-experiment "Design a referral experiment for active users"
-```
-
-Roles: `coordinator`, `researcher`, `marketer`, `analyst`, and `reviewer`.
-
-## Verify
+## Verification
 
 ```bash
 npm run verify
 ```
+
+The suite includes deterministic company integration tests for happy-path delivery,
+Product rejection and recovery, Design/QA rejection, interruption recovery, retry
+limits, Growth handoff, notification routing, and the manual production boundary.

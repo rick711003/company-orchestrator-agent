@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import { implementationReadyFindings, runQaGateCommand } from "./qa-gate.ts";
@@ -10,17 +10,66 @@ const developmentAgents = [
   { board: "Android", repo: "android-engineer-agent", bin: "android-agent.js", workflow: "android-feature-development", brief: "tasks/android.md" },
 ];
 
-function recordNotification(run: string, event: string, from: string, to: string, evidence: string): void {
+type GateName = "product" | "design" | "qa" | "release";
+type GateOutcome = "accepted" | "rejected";
+interface AutomationState {
+  schemaVersion: 1;
+  attempts: Record<GateName, number>;
+  outcomes: Partial<Record<GateName, GateOutcome>>;
+  updatedAt: string;
+}
+
+const MAX_GATE_ATTEMPTS = 3;
+
+function automationState(run: string): AutomationState {
+  const path = join(run, "AUTOMATION_STATE.json");
+  if (!existsSync(path)) {
+    return { schemaVersion: 1, attempts: { product: 0, design: 0, qa: 0, release: 0 }, outcomes: {}, updatedAt: new Date().toISOString() };
+  }
+  const state = JSON.parse(readFileSync(path, "utf8")) as AutomationState;
+  if (state.schemaVersion !== 1) throw new Error(`Unsupported automation state: ${path}`);
+  return state;
+}
+
+function recordGateOutcome(run: string, gate: GateName, outcome: GateOutcome): { attempt: number; changed: boolean; exhausted: boolean } {
+  const state = automationState(run);
+  const previous = state.outcomes[gate];
+  if (outcome === "rejected") state.attempts[gate] += 1;
+  else state.attempts[gate] = 0;
+  state.outcomes[gate] = outcome;
+  state.updatedAt = new Date().toISOString();
+  const path = join(run, "AUTOMATION_STATE.json");
+  const temporary = `${path}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`);
+  renameSync(temporary, path);
+  return { attempt: state.attempts[gate], changed: previous !== outcome, exhausted: outcome === "rejected" && state.attempts[gate] >= MAX_GATE_ATTEMPTS };
+}
+
+function recordNotification(run: string, event: string, from: string, to: string, evidence: string, occurrence = "once"): void {
   const path = join(run, "NOTIFICATION_LOG.md");
-  const marker = `<!-- event:${event} -->`;
+  const marker = `<!-- event:${event}:${occurrence} -->`;
   const current = existsSync(path) ? readFileSync(path, "utf8") : "# Notification Log\n\n";
   if (!existsSync(path)) writeFileSync(path, current);
   if (current.includes(marker)) return;
   appendFileSync(path, `${marker}\n- event: ${event}\n- from: ${from}\n- to: ${to}\n- evidence: ${evidence}\n\n`);
 }
 
+function recordRejection(run: string, gate: GateName, event: string, from: string, to: string, evidence: string): boolean {
+  const outcome = recordGateOutcome(run, gate, "rejected");
+  recordNotification(run, event, from, to, evidence, String(outcome.attempt));
+  if (outcome.exhausted) {
+    recordNotification(run, "systemic-failure", "Orchestrator", "Company owner", `${gate} rejected ${outcome.attempt} consecutive attempts; approval remains blocked.`, gate);
+  }
+  return outcome.exhausted;
+}
+
+function recordAcceptance(run: string, gate: GateName, event: string, from: string, to: string, evidence: string): void {
+  const outcome = recordGateOutcome(run, gate, "accepted");
+  if (outcome.changed) recordNotification(run, event, from, to, evidence);
+}
+
 export function runDispatchCommand(args: string[]): number {
-  let workspace = process.cwd(); let root = resolve(process.cwd(), ".."); let runId = ""; let execute = false;
+  let workspace = process.cwd(); let root = resolve(process.cwd(), ".."); let runId = ""; let execute = false; let exitCode = 0;
   for (let i = 0; i < args.length; i += 1) {
     const option = args[i]; const next = () => { const value = args[++i]; if (!value) throw new Error(`${option} requires a value.`); return value; };
     if (option === "--workspace") workspace = resolve(next()); else if (option === "--agents-root") root = resolve(next()); else if (option === "--run") runId = next(); else if (option === "--execute") execute = true;
@@ -97,11 +146,11 @@ export function runDispatchCommand(args: string[]): number {
     const task = `${brief}\n\nAuthoritative inputs: ${join(run, "PRD.md")}, ${join(run, "USER_STORIES.md")}, ${join(run, "SURFACE_INVENTORY.md")}, ${designFlow}, ${designSpec}, and ${join(run, "API_CONTRACT.yaml")}. Before code, write ${technicalPlan} and ${taskLedger}. Every task must cite requirement ID, surface/consumer ID, design/API version, dependencies, modules/files, approach, edge cases, tests, exact verification command, rollback, owner, and status. Execute and verify one dependency-ready task at a time. Engineering owns technical architecture but must not invent product behavior or visual values; report blocked-contract when input is incomplete. Enforce the repository file-size gate and attach its exact command and result.\n\nCompletion protocol: write ${join(run, `PRODUCT_HANDOFF.${agent.board.toLowerCase()}.md`)} containing requirement/surface traceability, technical-plan and task-ledger evidence, changed files, runtime-evidence, test-evidence, file-size-evidence, API changes, blockers, and ready-for-design-review: true. Engineering must never self-approve Design acceptance or QA readiness. Then change this exact Delivery Board line to [x]: ${line}`;
     const command = [bin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", agent.workflow, task];
     console.log(`${execute ? "Starting" : "Preview"}: node ${command.map((part) => JSON.stringify(part)).join(" ")}`);
-    if (execute) { const result = spawnSync("node", command, { stdio: "inherit" }); if (result.status !== 0) process.exitCode = 1; }
+    if (execute) { const result = spawnSync("node", command, { stdio: "inherit" }); if (result.status !== 0) exitCode = 1; }
     started += 1;
   }
   console.log(`${execute ? "Started" : "Would start"} ${started} development agent(s).`);
-  if (execute && !process.exitCode) {
+  if (execute && exitCode === 0) {
     const refreshedBoard = readFileSync(boardPath, "utf8");
     const developmentSection = refreshedBoard.split("## QA")[0] ?? refreshedBoard;
     const pendingDevelopment = developmentSection
@@ -145,12 +194,13 @@ export function runDispatchCommand(args: string[]): number {
       const productRuntimeResult = spawnSync("node", productRuntimeCommand, { stdio: "inherit" });
       if (productRuntimeResult.status !== 0) return 1;
       if (!existsSync(productRuntimeHandoff) || !/product-accepted:\s*true/i.test(readFileSync(productRuntimeHandoff, "utf8"))) {
-        recordNotification(run, "product-acceptance-rejected", "Product", "Engineering", productRuntimeHandoff);
+        const exhausted = recordRejection(run, "product", "product-acceptance-rejected", "Product", "Engineering", productRuntimeHandoff);
+        if (exhausted) console.log(`Product acceptance reached the ${MAX_GATE_ATTEMPTS}-attempt retry limit; systemic failure recorded without granting approval.`);
         console.log("Product review rejected this iteration. Routed rework must complete before Design runtime acceptance and QA.");
         return 2;
       }
     }
-    recordNotification(run, "product-acceptance-passed", "Product", "Design", productRuntimeHandoff);
+    recordAcceptance(run, "product", "product-acceptance-passed", "Product", "Design", productRuntimeHandoff);
 
     const designRuntimeHandoff = join(run, "PRODUCT_HANDOFF.design-runtime.md");
     const designRuntimeAccepted = existsSync(designRuntimeHandoff)
@@ -167,28 +217,29 @@ export function runDispatchCommand(args: string[]): number {
       const designRuntimeResult = spawnSync("node", designRuntimeCommand, { stdio: "inherit" });
       if (designRuntimeResult.status !== 0) return 1;
       if (!existsSync(designRuntimeHandoff) || !/design-accepted:\s*true/i.test(readFileSync(designRuntimeHandoff, "utf8"))) {
-        recordNotification(run, "design-acceptance-rejected", "Design", "Engineering, Product", designRuntimeHandoff);
+        const exhausted = recordRejection(run, "design", "design-acceptance-rejected", "Design", "Engineering, Product", designRuntimeHandoff);
+        if (exhausted) console.log(`Design acceptance reached the ${MAX_GATE_ATTEMPTS}-attempt retry limit; systemic failure recorded without granting approval.`);
         console.log("Runtime Design review rejected this iteration. Routed Engineering rework must complete before QA.");
         return 2;
       }
     }
 
-    recordNotification(run, "design-acceptance-passed", "Design", "QA", designRuntimeHandoff);
+    recordAcceptance(run, "design", "design-acceptance-passed", "Design", "QA", designRuntimeHandoff);
 
     const gate = runQaGateCommand(["--workspace", workspace, "--run", runId, "--apply"]);
     if (gate === 2) console.log("QA remains blocked until required PRODUCT_HANDOFFs update the Delivery Board.");
-    else if (gate !== 0) process.exitCode = gate;
+    else if (gate !== 0) exitCode = gate;
     else {
       const qaBin = join(root, "qa-engineer-agent", "bin", "qa-agent.js");
       if (!existsSync(qaBin)) {
         console.log(`QA dispatch blocked: CLI not found at ${qaBin}`);
-        process.exitCode = 2;
+        exitCode = 2;
       } else {
         const qaTask = `Execute the QA feedback-loop gate for run ${runId}. Authoritative inputs: ${join(run, "PRD.md")}, ${join(run, "USER_STORIES.md")}, ${join(run, "SURFACE_INVENTORY.md")}, ${designFlow}, ${designSpec}, ${join(run, "API_CONTRACT.yaml")}, and every applicable PRODUCT_HANDOFF.ios/android/frontend/backend.md. Before execution, write ${join(run, "QA_TEST_SPEC.md")} with status: qa-approved and a traceability matrix mapping every requirement, Design flow branch, surface/state, API behavior, device/viewport, locale, theme, failure, recovery, and accessibility variant to test cases. Execute step by step with exact evidence. Classify and route defects: requirement → PM, design → Design, implementation/integration → owning Engineering team; reopen affected Delivery Board rows and invalidate stale approvals. When and only when all current cases pass, write ${join(run, "PRODUCT_HANDOFF.qa.md")} with qa-passed: true, test-spec-evidence, test-evidence, defects, regressions, and release-ready: true; check QA Test Spec approved and QA passed on DELIVERY_BOARD.md. Do not publish or release.`;
         const command = [qaBin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", "feature-validation", qaTask];
         console.log(`Starting QA loop: node ${command.map((part) => JSON.stringify(part)).join(" ")}`);
         const result = spawnSync("node", command, { stdio: "inherit" });
-        if (result.status !== 0) process.exitCode = 1;
+        if (result.status !== 0) exitCode = 1;
         else {
           const qaHandoff = join(run, "PRODUCT_HANDOFF.qa.md");
           const qaSpec = join(run, "QA_TEST_SPEC.md");
@@ -197,23 +248,43 @@ export function runDispatchCommand(args: string[]): number {
             && existsSync(qaSpec)
             && /status:\s*qa-approved/i.test(readFileSync(qaSpec, "utf8"));
           if (!qaPassed) {
-            recordNotification(run, "qa-rejected", "QA", "Product, Design, Engineering", qaHandoff);
+            const exhausted = recordRejection(run, "qa", "qa-rejected", "QA", "Product, Design, Engineering", qaHandoff);
+            if (exhausted) console.log(`QA reached the ${MAX_GATE_ATTEMPTS}-attempt retry limit; systemic failure recorded without granting approval.`);
             console.log("QA rejected this iteration. Reopened owners must complete routed rework before the next automatic dispatch.");
-            process.exitCode = 2;
+            exitCode = 2;
           } else {
+            recordAcceptance(run, "qa", "qa-passed", "QA", "Release", qaHandoff);
             const releaseBin = join(root, "release-engineer-agent", "bin", "release-agent.js");
             if (!existsSync(releaseBin)) {
               console.log(`Release validation blocked: CLI not found at ${releaseBin}`);
-              process.exitCode = 2;
+              exitCode = 2;
             } else {
               const releaseTask = `Validate release readiness for run ${runId} without publishing. Inspect the final built/archive artifacts and all files in ${run}: PRD, stories, Surface Inventory, Design flow/spec and runtime acceptance, every Engineering technical plan/task ledger/handoff, API contract, QA Test Spec/handoff, privacy, localization, assets/device families, signing/configuration, analytics, migrations, observability, rollout, and rollback. Write ${join(run, "PRODUCT_HANDOFF.release.md")} with artifact-evidence, gate traceability, blockers, release-validated: true, and status: awaiting-manual-release only when every gate is current. Update RELEASE_CHECKLIST.md and DELIVERY_BOARD.md, but never publish, submit, contact, spend, deploy to production, or convert the manual gate to approval.`;
               const releaseCommand = [releaseBin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", "release-planning", releaseTask];
               console.log(`Starting Release validation: node ${releaseCommand.map((part) => JSON.stringify(part)).join(" ")}`);
               const releaseResult = spawnSync("node", releaseCommand, { stdio: "inherit" });
-              if (releaseResult.status !== 0) process.exitCode = 1;
+              if (releaseResult.status !== 0) exitCode = 1;
               else {
-                recordNotification(run, "release-validated", "Release", "Human release owner", join(run, "PRODUCT_HANDOFF.release.md"));
-                console.log("Release validation completed. Production remains awaiting explicit human approval.");
+                recordAcceptance(run, "release", "release-validated", "Release", "Growth, Human release owner", join(run, "PRODUCT_HANDOFF.release.md"));
+                const growthBin = join(root, "growth-agent", "bin", "growth-agent.js");
+                if (!existsSync(growthBin)) {
+                  console.log(`Growth handoff blocked: CLI not found at ${growthBin}`);
+                  exitCode = 2;
+                } else {
+                  const growthHandoff = join(run, "PRODUCT_HANDOFF.growth.md");
+                  const growthTask = `Prepare an approval-ready Growth handoff for run ${runId} using only current, accepted evidence from ${run}. Read the approved PRD and stories, Design assets, Product runtime acceptance, Design runtime acceptance, QA results, and Release validation. Write ${growthHandoff} with audience, truthful claims traced to evidence, approved asset references, channels, measurement, privacy/consent constraints, blockers, and campaign-ready: true. Produce drafts only: never publish, contact anyone, spend money, create accounts, change production, or imply that awaiting-manual-release is released.`;
+                  const growthCommand = [growthBin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", "launch-campaign", growthTask];
+                  console.log(`Starting Growth handoff: node ${growthCommand.map((part) => JSON.stringify(part)).join(" ")}`);
+                  const growthResult = spawnSync("node", growthCommand, { stdio: "inherit" });
+                  if (growthResult.status !== 0) exitCode = 1;
+                  else if (!existsSync(growthHandoff) || !/campaign-ready:\s*true/i.test(readFileSync(growthHandoff, "utf8"))) {
+                    console.log("Growth handoff is incomplete; no external action was authorized.");
+                    exitCode = 2;
+                  } else {
+                    recordNotification(run, "growth-package-ready", "Growth", "Company owner", growthHandoff);
+                    console.log("Release validation and Growth draft completed. Production and external actions remain awaiting explicit human approval.");
+                  }
+                }
               }
             }
           }
@@ -221,5 +292,5 @@ export function runDispatchCommand(args: string[]): number {
       }
     }
   }
-  return typeof process.exitCode === "number" ? process.exitCode : 0;
+  return exitCode;
 }

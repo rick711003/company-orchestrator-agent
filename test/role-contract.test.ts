@@ -9,6 +9,7 @@ test("dispatch includes iOS, Android, Web, and Backend in the same evidence loop
     "android-engineer-agent",
     "frontend-engineer-agent",
     "backend-engineer-agent",
+    "growth-agent",
   ]) {
     assert.match(source, new RegExp(required));
   }
@@ -22,4 +23,6 @@ test("dispatch includes iOS, Android, Web, and Backend in the same evidence loop
   assert.match(source, /Engineering must never self-approve Design acceptance/);
   assert.match(source, /QA_TEST_SPEC\.md/);
   assert.match(source, /awaiting-manual-release/);
+  assert.match(source, /campaign-ready/);
+  assert.match(source, /never publish, contact anyone, spend money/);
 });
