@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; import test from "node:test";
 test("runtime prompt enforces orchestration rather than impersonating PM", () => { const source = readFileSync(new URL("../src/core/team.ts", import.meta.url), "utf8"); assert.match(source, /company orchestration team/); assert.match(source, /Surface Inventory/); assert.match(source, /Auto-notify/); assert.doesNotMatch(source, /operating as a product management team/); });
+test("portfolio and release workflows retain orchestration identities", () => { assert.match(readFileSync(new URL("../src/workflows/portfolio-status.ts", import.meta.url), "utf8"), /id: "portfolio-status"/); assert.match(readFileSync(new URL("../src/workflows/release-coordination.ts", import.meta.url), "utf8"), /id: "release-coordination"/); });
 
 test("dispatch includes iOS, Android, Web, and Backend in the same evidence loop", () => {
   const source = readFileSync(new URL("../src/commands/dispatch.ts", import.meta.url), "utf8");

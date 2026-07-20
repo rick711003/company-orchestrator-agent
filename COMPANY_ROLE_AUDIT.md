@@ -2,6 +2,19 @@
 
 ## Findings corrected
 
+- 2026-07-20 deep audit found that public README, Claude instructions, Codex skill
+  metadata, CLI help, and several specialized workflows still retained QA/Growth
+  templates even though the primary runtime prompts had previously been corrected.
+  These entry points now identify their real role and contract.
+- Product `product-discovery` and `roadmap-planning`, Frontend `design-to-web` and
+  `web-accessibility-audit`, Backend `database-migration` and `security-audit`,
+  Android `android-bug-fix` and `android-release-readiness`, Release
+  `production-incident`, and Orchestrator `portfolio-status` and
+  `release-coordination` now have truthful IDs, inputs, stages, and success gates.
+- Android no longer exposes a copied full-stack QA workflow or a `QA Reviewer`
+  inside the Engineering team. Android review now stops at Engineering handoff.
+- Role-contract regression tests now inspect public entry points and specialized
+  workflow identities, preventing future copy-template drift from passing CI.
 - Android, Frontend, Backend, and Release runtime prompts were copied from QA; Frontend also carried a Backend roster. Their runtime identities and specialist rosters are now distinct.
 - The orchestrator package pointed at a nonexistent CLI filename, so full verification could not launch it. Package entry points now target the real executable.
 - Cross-functional planning omitted Android, Release, and Growth and did not generate a complete Design brief or Surface Inventory. These artifacts and roles are now mandatory or must be explicitly marked not applicable.

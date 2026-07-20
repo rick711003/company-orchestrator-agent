@@ -1,8 +1,9 @@
 import type { WorkflowDefinition } from "../core/workflow.ts";
-export const releaseCoordinationWorkflow: WorkflowDefinition = { id: "launch-campaign", name: "Roadmap Planning", description: "Prepare an approval-ready launch plan, assets, measurement, and risk review.", requiredInputs: ["Launch scope", "Target product workspace"], stages: [
-  { id: "launch-brief", role: "coordinator", goal: "Define launch goal, audience, constraints, ownership, and approval gates." },
-  { id: "audience-and-market", role: "researcher", goal: "Confirm audience, competitive context, objections, and launch opportunity." },
-  { id: "launch-assets", role: "strategist", goal: "Draft ASO, content, lifecycle, partnership, and campaign assets for human approval." },
-  { id: "launch-measurement", role: "delivery", goal: "Define attribution, funnel, dashboards, guardrails, and post-launch review cadence." },
-  { id: "launch-review", role: "reviewer", goal: "Audit claims, consent, privacy, reputation, measurement, and unresolved risks." },
-], successCriteria: ["No external communication or spend occurs without human approval", "Assets use truthful, audience-appropriate claims", "Measurement and ownership are explicit", "User privacy and consent are protected", "Launch risks and decision gates are auditable"] };
+export const releaseCoordinationWorkflow: WorkflowDefinition = {
+  id: "release-coordination", name: "Cross-Role Release Coordination", description: "Coordinate current Product, Design, Engineering, QA, Release, and Growth evidence to the manual release boundary.", requiredInputs: ["Product run and release candidate", "Current cross-functional handoffs"], stages: [
+    { id: "release-scope", role: "coordinator", goal: "Resolve candidate identity, included requirements/platforms, owners, environments, dates, and manual approval authority." },
+    { id: "evidence-audit", role: "researcher", goal: "Verify current Product/Design/QA acceptance, engineering runtime evidence, artifact identity, privacy, signing, migrations, rollout, and rollback." },
+    { id: "dependency-gates", role: "strategist", goal: "Map release order, stale or missing gates, compatibility windows, failure paths, notification fan-out, and stop conditions." },
+    { id: "coordination", role: "delivery", goal: "Route corrective verification and prepare Release/Growth drafts without deploying, publishing, contacting, or spending." },
+    { id: "manual-gate-review", role: "reviewer", goal: "Independently verify readiness and clearly separate validated candidate status from human release authorization." },
+  ], successCriteria: ["The exact candidate and all upstream versions are traceable", "Missing/stale gates block advancement", "Rollout, rollback, observability, and ownership are explicit", "Growth uses only approved evidence and remains draft-only", "Release remains awaiting explicit human approval"] };
