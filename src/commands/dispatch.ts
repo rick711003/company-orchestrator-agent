@@ -118,7 +118,7 @@ function runDispatchUnlocked(args: string[]): number {
       console.log(`Blocked: Design agent CLI not found at ${bin}`);
       return 2;
     }
-    const task = `${readFileSync(join(run, "tasks/design.md"), "utf8")}\n\nAuthoritative PM inputs: ${join(run, "PRD.md")}, ${join(run, "USER_STORIES.md")}, and ${join(run, "SURFACE_INVENTORY.md")}. Translate every requirement/story into ${join(run, "DESIGN_FLOW.md")} and ${join(run, "DESIGN_SPEC.md")}; cover every screen, sheet, modal, menu, alert, dialog, toast, state, device/viewport, locale, theme, and accessibility variant. Set both documents to status: design-approved only after independent Design review. Write ${join(run, "PRODUCT_HANDOFF.design.md")} with requirement/surface traceability, flow-evidence, mockup-evidence, design-version, blockers, and design-approved: true. Then change this exact Delivery Board line to [x]: ${designLine}`;
+    const task = `${readFileSync(join(run, "tasks/design.md"), "utf8")}\n\nAuthoritative PM inputs: ${join(run, "PRD.md")}, ${join(run, "USER_STORIES.md")}, and ${join(run, "SURFACE_INVENTORY.md")}. Translate every requirement/story into ${join(run, "DESIGN_FLOW.md")} and ${join(run, "DESIGN_SPEC.md")}; cover every screen, sheet, modal, menu, alert, dialog, toast, state, device/viewport, locale, theme, and accessibility variant. Define continuous first-use, return-use, edit/cancel, destructive/recovery, runtime locale/theme/type-size, cached-state, and persisted-state journeys. Audit every control-like visual treatment for true or false affordance and representative localized glyph fit. Set both documents to status: design-approved only after independent Design review. Write ${join(run, "PRODUCT_HANDOFF.design.md")} with requirement/surface traceability, flow-evidence, mockup-evidence, journey-spec-evidence, affordance-audit-evidence, design-version, blockers, and design-approved: true. Then change this exact Delivery Board line to [x]: ${designLine}`;
     const command = [bin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", "product-feature", task];
     console.log(`${execute ? "Starting" : "Preview"}: node ${command.map((part) => JSON.stringify(part)).join(" ")}`);
     if (execute) {
@@ -140,7 +140,7 @@ function runDispatchUnlocked(args: string[]): number {
   const designHandoff = join(run, "PRODUCT_HANDOFF.design.md");
   const designFlow = join(run, "DESIGN_FLOW.md");
   const designSpec = join(run, "DESIGN_SPEC.md");
-  const designReady = acceptedArtifact(designHandoff, { required: ["flow-evidence", "mockup-evidence", "design-version", "design-approved"], trueFields: ["design-approved"] })
+  const designReady = acceptedArtifact(designHandoff, { required: ["flow-evidence", "mockup-evidence", "journey-spec-evidence", "affordance-audit-evidence", "design-version", "design-approved"], trueFields: ["design-approved"] })
     && existsSync(designFlow) && /status:\s*design-approved/i.test(readFileSync(designFlow, "utf8"))
     && existsSync(designSpec) && /status:\s*design-approved/i.test(readFileSync(designSpec, "utf8"));
   if (!designReady) {
@@ -162,7 +162,7 @@ function runDispatchUnlocked(args: string[]): number {
     const brief = existsSync(briefPath) ? readFileSync(briefPath, "utf8") : `Implement the ${agent.board} scope in ${join(run, "FEATURE_CONTRACT.md")}.`;
     const technicalPlan = join(run, `TECHNICAL_PLAN.${agent.board.toLowerCase()}.md`);
     const taskLedger = join(run, `TASK_LEDGER.${agent.board.toLowerCase()}.md`);
-    const task = `${brief}\n\nAuthoritative inputs: ${join(run, "PRD.md")}, ${join(run, "USER_STORIES.md")}, ${join(run, "SURFACE_INVENTORY.md")}, ${designFlow}, ${designSpec}, and ${join(run, "API_CONTRACT.yaml")}. Before code, write ${technicalPlan} and ${taskLedger}. Every task must cite requirement ID, surface/consumer ID, design/API version, dependencies, modules/files, approach, edge cases, tests, exact verification command, rollback, owner, and status. Execute and verify one dependency-ready task at a time. Engineering owns technical architecture but must not invent product behavior or visual values; report blocked-contract when input is incomplete. Enforce the repository file-size gate and attach its exact command and result.\n\nCompletion protocol: write ${join(run, `PRODUCT_HANDOFF.${agent.board.toLowerCase()}.md`)} containing requirement/surface traceability, technical-plan and task-ledger evidence, changed files, runtime-evidence, test-evidence, file-size-evidence, API changes, blockers, and ready-for-design-review: true. Engineering must never self-approve Design acceptance or QA readiness. Then change this exact Delivery Board line to [x]: ${line}`;
+    const task = `${brief}\n\nAuthoritative inputs: ${join(run, "PRD.md")}, ${join(run, "USER_STORIES.md")}, ${join(run, "SURFACE_INVENTORY.md")}, ${designFlow}, ${designSpec}, and ${join(run, "API_CONTRACT.yaml")}. Before code, write ${technicalPlan} and ${taskLedger}. Every task must cite requirement ID, surface/consumer ID, design/API version, dependencies, modules/files, approach, edge cases, tests, exact verification command, rollback, owner, and status. Execute and verify one dependency-ready task at a time. Engineering owns technical architecture but must not invent product behavior or visual values; report blocked-contract when input is incomplete. Enforce the repository file-size gate and attach its exact command and result. Install/run the real artifact and execute continuous fresh-state and persisted-state journeys across changed and adjacent surfaces, including deliberate deviations, runtime state changes, affordance probing, layout/glyph fit, and diagnostics.\n\nCompletion protocol: write ${join(run, `PRODUCT_HANDOFF.${agent.board.toLowerCase()}.md`)} containing requirement/surface traceability, technical-plan and task-ledger evidence, changed files, runtime-evidence, test-evidence, journey-evidence, runtime-diagnostics-evidence, file-size-evidence, API changes, blockers, and ready-for-design-review: true. Engineering must never self-approve Design acceptance or QA readiness. Then change this exact Delivery Board line to [x]: ${line}`;
     const command = [bin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", agent.workflow, task];
     console.log(`${execute ? "Starting" : "Preview"}: node ${command.map((part) => JSON.stringify(part)).join(" ")}`);
     if (execute) { const result = runAgent(command, workspace, agent.board.toLowerCase(), agentTimeoutMs); const failure = agentFailure(result, agent.board); if (failure) { console.log(failure); exitCode = 1; } }
@@ -183,7 +183,7 @@ function runDispatchUnlocked(args: string[]): number {
       const path = join(run, `PRODUCT_HANDOFF.${team}.md`);
       if (!existsSync(path)) return true;
       const content = readFileSync(path, "utf8");
-      return !acceptedArtifact(path, { required: ["runtime-evidence", "test-evidence", "file-size-evidence", "ready-for-design-review"], trueFields: ["ready-for-design-review"], forbidden: ["design-accepted", "ready-for-qa", "qa-passed", "release-validated"] });
+      return !acceptedArtifact(path, { required: ["runtime-evidence", "test-evidence", "journey-evidence", "runtime-diagnostics-evidence", "file-size-evidence", "ready-for-design-review"], trueFields: ["ready-for-design-review"], forbidden: ["design-accepted", "ready-for-qa", "qa-passed", "release-validated"] });
     });
     if (pendingDevelopment.length > 0 || incompleteEngineeringEvidence.length > 0) {
       console.log("Runtime Design acceptance blocked until every applicable Engineering handoff is complete.");
@@ -199,7 +199,7 @@ function runDispatchUnlocked(args: string[]): number {
     const engineeringHandoffs = applicableTeams.map((team) => join(run, `PRODUCT_HANDOFF.${team}.md`));
     const productInputs = [join(run, "PRD.md"), join(run, "USER_STORIES.md"), join(run, "FEATURE_CONTRACT.md"), designFlow, designSpec, join(run, "API_CONTRACT.yaml"), ...engineeringHandoffs];
     const productFingerprint = `${artifactFingerprint(productInputs)}:${surfaceDefinitionFingerprint(join(run, "SURFACE_INVENTORY.md"))}`;
-    const productRuntimeAccepted = acceptedArtifact(productRuntimeHandoff, { required: ["requirement-traceability", "runtime-evidence", "product-accepted"], trueFields: ["product-accepted"] })
+    const productRuntimeAccepted = acceptedArtifact(productRuntimeHandoff, { required: ["requirement-traceability", "runtime-evidence", "session-evidence", "micro-quality-evidence", "product-accepted"], trueFields: ["product-accepted"] })
       && approvalIsCurrent(run, "product", productFingerprint);
     if (!productRuntimeAccepted) {
       const productBin = join(root, "product-manager-agent", "bin", "product-manager-agent.js");
@@ -207,13 +207,13 @@ function runDispatchUnlocked(args: string[]): number {
         console.log(`Product implementation acceptance blocked: CLI not found at ${productBin}`);
         return 2;
       }
-      const productRuntimeTask = `Perform independent Product implementation acceptance for run ${runId}. Compare ${join(run, "PRD.md")}, ${join(run, "USER_STORIES.md")}, ${join(run, "FEATURE_CONTRACT.md")}, ${join(run, "SURFACE_INVENTORY.md")}, ${designFlow}, ${designSpec}, ${join(run, "API_CONTRACT.yaml")}, and every applicable Engineering handoff/runtime artifact. Trace every requirement, story, business rule, scope boundary, content meaning, onboarding obligation, failure and recovery behavior, and platform commitment. Engineering completion is evidence, never Product approval. Write ${productRuntimeHandoff}. Set product-accepted: true only when every applicable requirement passes; otherwise set product-accepted: false, list rejected requirement IDs, evidence, severity, owner, correction and retest, invalidate stale Design/QA/Release approvals, and reopen matching Delivery Board rows. Do not edit product code, claim Design acceptance, or release.`;
+      const productRuntimeTask = `Perform independent Product implementation acceptance for run ${runId}. Compare ${join(run, "PRD.md")}, ${join(run, "USER_STORIES.md")}, ${join(run, "FEATURE_CONTRACT.md")}, ${join(run, "SURFACE_INVENTORY.md")}, ${designFlow}, ${designSpec}, ${join(run, "API_CONTRACT.yaml")}, and every applicable Engineering handoff/runtime artifact. Trace every requirement, story, business rule, scope boundary, content meaning, onboarding obligation, failure and recovery behavior, and platform commitment. Execute complete fresh-state and realistic persisted-state user sessions in story order, including runtime setting changes and deliberate deviations; inspect micro-quality, continuity, wording, and user feedback instead of accepting isolated screens. Engineering completion is evidence, never Product approval. Write ${productRuntimeHandoff} with requirement-traceability, runtime-evidence, session-evidence, micro-quality-evidence, and product-accepted. Set product-accepted: true only when every applicable requirement and session passes; otherwise set product-accepted: false, list rejected requirement IDs, evidence, severity, owner, correction and retest, invalidate stale Design/QA/Release approvals, and reopen matching Delivery Board rows. Do not edit product code, claim Design acceptance, or release.`;
       const productRuntimeCommand = [productBin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", "implementation-acceptance", productRuntimeTask];
       console.log(`Starting independent Product implementation acceptance: node ${productRuntimeCommand.map((part) => JSON.stringify(part)).join(" ")}`);
       const productRuntimeResult = runAgent(productRuntimeCommand, workspace, "product", agentTimeoutMs);
       const productFailure = agentFailure(productRuntimeResult, "Product");
       if (productFailure) { console.log(productFailure); return 1; }
-      if (!acceptedArtifact(productRuntimeHandoff, { required: ["requirement-traceability", "runtime-evidence", "product-accepted"], trueFields: ["product-accepted"] })) {
+      if (!acceptedArtifact(productRuntimeHandoff, { required: ["requirement-traceability", "runtime-evidence", "session-evidence", "micro-quality-evidence", "product-accepted"], trueFields: ["product-accepted"] })) {
         const exhausted = recordRejection(run, "product", "product-acceptance-rejected", "Product", "Engineering", productRuntimeHandoff);
         if (exhausted) console.log(`Product acceptance reached the ${MAX_GATE_ATTEMPTS}-attempt retry limit; systemic failure recorded without granting approval.`);
         console.log("Product review rejected this iteration. Routed rework must complete before Design runtime acceptance and QA.");
@@ -224,7 +224,7 @@ function runDispatchUnlocked(args: string[]): number {
 
     const designRuntimeHandoff = join(run, "PRODUCT_HANDOFF.design-runtime.md");
     const designRuntimeInputs = [join(run, "PRD.md"), join(run, "USER_STORIES.md"), designFlow, designSpec, join(run, "SURFACE_INVENTORY.md"), productRuntimeHandoff, ...engineeringHandoffs];
-    const designRuntimeAccepted = acceptedArtifact(designRuntimeHandoff, { required: ["runtime-evidence", "design-accepted"], trueFields: ["design-accepted"] })
+    const designRuntimeAccepted = acceptedArtifact(designRuntimeHandoff, { required: ["runtime-evidence", "journey-evidence", "affordance-evidence", "transition-evidence", "design-accepted"], trueFields: ["design-accepted"] })
       && approvalIsCurrent(run, "design", artifactFingerprint(designRuntimeInputs));
     if (!designRuntimeAccepted) {
       const designBin = join(root, "design-agent", "bin", "design-agent.js");
@@ -232,13 +232,13 @@ function runDispatchUnlocked(args: string[]): number {
         console.log(`Runtime Design acceptance blocked: CLI not found at ${designBin}`);
         return 2;
       }
-      const designRuntimeTask = `Perform independent runtime Design acceptance for run ${runId}. Compare ${designFlow}, ${designSpec}, ${join(run, "SURFACE_INVENTORY.md")}, and every applicable Engineering handoff/runtime artifact. Inspect every declared surface, state, device/viewport, locale, theme, accessibility variant, typography token, asset, content value, interaction, and transition. Engineering claims are evidence inputs, never Design approval. After independent review, write ${designRuntimeHandoff}. Set design-accepted: true only when every applicable row passes; otherwise set design-accepted: false, list rejected requirement/surface IDs, evidence, severity, owning Engineering team, required correction and retest, invalidate stale QA/Release status, and reopen the matching Delivery Board rows. Update Design acceptance cells in SURFACE_INVENTORY.md row by row. Do not edit product code and do not release.`;
+      const designRuntimeTask = `Perform independent runtime Design acceptance for run ${runId}. Compare ${designFlow}, ${designSpec}, ${join(run, "SURFACE_INVENTORY.md")}, and every applicable Engineering handoff/runtime artifact. Inspect every declared surface, state, device/viewport, locale, theme, accessibility variant, typography token, asset, content value, interaction, and transition. Run continuous first-use and return-use journeys; probe everything that appears interactive, switch runtime locale/theme/type size, revisit cached surfaces, and inspect glyph/layout fit plus transition feedback. Engineering claims are evidence inputs, never Design approval. After independent review, write ${designRuntimeHandoff} with runtime-evidence, journey-evidence, affordance-evidence, transition-evidence, and design-accepted. Set design-accepted: true only when every applicable row and journey passes; otherwise set design-accepted: false, list rejected requirement/surface IDs, evidence, severity, owning Engineering team, required correction and retest, invalidate stale QA/Release status, and reopen the matching Delivery Board rows. Update Design acceptance cells in SURFACE_INVENTORY.md row by row. Do not edit product code and do not release.`;
       const designRuntimeCommand = [designBin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", "runtime-acceptance", designRuntimeTask];
       console.log(`Starting independent runtime Design acceptance: node ${designRuntimeCommand.map((part) => JSON.stringify(part)).join(" ")}`);
       const designRuntimeResult = runAgent(designRuntimeCommand, workspace, "design", agentTimeoutMs);
       const designFailure = agentFailure(designRuntimeResult, "Design");
       if (designFailure) { console.log(designFailure); return 1; }
-      if (!acceptedArtifact(designRuntimeHandoff, { required: ["runtime-evidence", "design-accepted"], trueFields: ["design-accepted"] })) {
+      if (!acceptedArtifact(designRuntimeHandoff, { required: ["runtime-evidence", "journey-evidence", "affordance-evidence", "transition-evidence", "design-accepted"], trueFields: ["design-accepted"] })) {
         const exhausted = recordRejection(run, "design", "design-acceptance-rejected", "Design", "Engineering, Product", designRuntimeHandoff);
         if (exhausted) console.log(`Design acceptance reached the ${MAX_GATE_ATTEMPTS}-attempt retry limit; systemic failure recorded without granting approval.`);
         console.log("Runtime Design review rejected this iteration. Routed Engineering rework must complete before QA.");
@@ -255,7 +255,7 @@ function runDispatchUnlocked(args: string[]): number {
     const releaseInputs = [...designRuntimeInputs, designRuntimeHandoff, qaSpecPath, qaHandoffPath];
     const releaseFingerprint = artifactFingerprint(releaseInputs);
     const completedAndCurrent = acceptedArtifact(releaseHandoffPath, {
-      required: ["artifact-evidence", "gate-traceability", "status", "release-validated"], trueFields: ["release-validated"],
+      required: ["artifact-evidence", "gate-traceability", "candidate-journey-evidence", "runtime-diagnostics-evidence", "status", "release-validated"], trueFields: ["release-validated"],
     }) && acceptedArtifact(growthHandoffPath, {
       required: ["audience", "claims-evidence", "approved-asset-references", "channels", "measurement", "privacy-consent-constraints", "status", "campaign-ready"], trueFields: ["campaign-ready"],
     }) && approvalIsCurrent(run, "release", releaseFingerprint);
@@ -273,7 +273,7 @@ function runDispatchUnlocked(args: string[]): number {
         console.log(`QA dispatch blocked: CLI not found at ${qaBin}`);
         exitCode = 2;
       } else {
-        const qaTask = `Execute the QA feedback-loop gate for run ${runId}. Authoritative inputs: ${join(run, "PRD.md")}, ${join(run, "USER_STORIES.md")}, ${join(run, "SURFACE_INVENTORY.md")}, ${designFlow}, ${designSpec}, ${join(run, "API_CONTRACT.yaml")}, and every applicable PRODUCT_HANDOFF.ios/android/frontend/backend.md. Before execution, write ${join(run, "QA_TEST_SPEC.md")} with status: qa-approved and a traceability matrix mapping every requirement, Design flow branch, surface/state, API behavior, device/viewport, locale, theme, failure, recovery, and accessibility variant to test cases. Execute step by step with exact evidence. Classify and route defects: requirement → PM, design → Design, implementation/integration → owning Engineering team; reopen affected Delivery Board rows and invalidate stale approvals. When and only when all current cases pass, write ${join(run, "PRODUCT_HANDOFF.qa.md")} with qa-passed: true, test-spec-evidence, test-evidence, defects, regressions, and release-ready: true; check QA Test Spec approved and QA passed on DELIVERY_BOARD.md. Do not publish or release.`;
+        const qaTask = `Execute the QA feedback-loop gate for run ${runId}. Authoritative inputs: ${join(run, "PRD.md")}, ${join(run, "USER_STORIES.md")}, ${join(run, "SURFACE_INVENTORY.md")}, ${designFlow}, ${designSpec}, ${join(run, "API_CONTRACT.yaml")}, and every applicable PRODUCT_HANDOFF.ios/android/frontend/backend.md. Before execution, write ${join(run, "QA_TEST_SPEC.md")} with status: qa-approved and a traceability matrix mapping every requirement, Design flow branch, surface/state, API behavior, device/viewport, locale, theme, failure, recovery, and accessibility variant to test cases. Execute at least one uninterrupted fresh-state and one realistic persisted-state exploratory session. Follow each approved journey, deliberately deviate at every step, probe apparent controls, switch runtime settings, revisit cached surfaces, vary timing/failures, and record timestamped actions, results, screenshots, and diagnostics. Isolated destination assertions or another role's screenshots are insufficient. Classify and route defects: requirement → PM, design → Design, implementation/integration → owning Engineering team; reopen affected Delivery Board rows and invalidate stale approvals. When and only when all current cases pass, write ${join(run, "PRODUCT_HANDOFF.qa.md")} with qa-passed: true, test-spec-evidence, test-evidence, exploratory-session-evidence, state-transition-evidence, affordance-evidence, runtime-diagnostics-evidence, defects, regressions, and release-ready: true; check QA Test Spec approved and QA passed on DELIVERY_BOARD.md. Do not publish or release.`;
         const command = [qaBin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", "feature-validation", qaTask];
         console.log(`Starting QA loop: node ${command.map((part) => JSON.stringify(part)).join(" ")}`);
         const result = runAgent(command, workspace, "qa", agentTimeoutMs);
@@ -282,8 +282,7 @@ function runDispatchUnlocked(args: string[]): number {
         else {
           const qaHandoff = join(run, "PRODUCT_HANDOFF.qa.md");
           const qaSpec = join(run, "QA_TEST_SPEC.md");
-          const qaPassed = existsSync(qaHandoff)
-            && /qa-passed:\s*true/i.test(readFileSync(qaHandoff, "utf8"))
+          const qaPassed = acceptedArtifact(qaHandoff, { required: ["test-spec-evidence", "test-evidence", "exploratory-session-evidence", "state-transition-evidence", "affordance-evidence", "runtime-diagnostics-evidence", "qa-passed", "release-ready"], trueFields: ["qa-passed", "release-ready"] })
             && existsSync(qaSpec)
             && /status:\s*qa-approved/i.test(readFileSync(qaSpec, "utf8"));
           if (!qaPassed) {
@@ -298,14 +297,14 @@ function runDispatchUnlocked(args: string[]): number {
               console.log(`Release validation blocked: CLI not found at ${releaseBin}`);
               exitCode = 2;
             } else {
-              const releaseTask = `Validate release readiness for run ${runId} without publishing. Inspect the final built/archive artifacts and all files in ${run}: PRD, stories, Surface Inventory, Design flow/spec and runtime acceptance, every Engineering technical plan/task ledger/handoff, API contract, QA Test Spec/handoff, privacy, localization, assets/device families, signing/configuration, analytics, migrations, observability, rollout, and rollback. Write ${join(run, "PRODUCT_HANDOFF.release.md")} with artifact-evidence, gate traceability, blockers, release-validated: true, and status: awaiting-manual-release only when every gate is current. Update RELEASE_CHECKLIST.md and DELIVERY_BOARD.md, but never publish, submit, contact, spend, deploy to production, or convert the manual gate to approval.`;
+              const releaseTask = `Validate release readiness for run ${runId} without publishing. Inspect the final built/archive artifacts and all files in ${run}: PRD, stories, Surface Inventory, Design flow/spec and runtime acceptance, every Engineering technical plan/task ledger/handoff, API contract, QA Test Spec/handoff, privacy, localization, assets/device families, signing/configuration, analytics, migrations, observability, rollout, and rollback. Install the exact candidate and independently replay the continuous fresh/upgrade/return/failure journeys, including runtime settings, cached state, persistence/restart, affordance, glyph/layout, and diagnostics checks. Write ${join(run, "PRODUCT_HANDOFF.release.md")} with artifact-evidence, gate-traceability, candidate-journey-evidence, runtime-diagnostics-evidence, blockers, release-validated: true, and status: awaiting-manual-release only when every gate is current. Update RELEASE_CHECKLIST.md and DELIVERY_BOARD.md, but never publish, submit, contact, spend, deploy to production, or convert the manual gate to approval.`;
               const releaseCommand = [releaseBin, "run", "start", "--write", "--auto-approve", "--cwd", workspace, "--workflow", "release-planning", releaseTask];
               console.log(`Starting Release validation: node ${releaseCommand.map((part) => JSON.stringify(part)).join(" ")}`);
               const releaseResult = runAgent(releaseCommand, workspace, "release", agentTimeoutMs);
               const releaseFailure = agentFailure(releaseResult, "Release");
               if (releaseFailure) { console.log(releaseFailure); exitCode = 1; }
               else {
-                if (!acceptedArtifact(releaseHandoffPath, { required: ["artifact-evidence", "gate-traceability", "status", "release-validated"], trueFields: ["release-validated"] })) {
+                if (!acceptedArtifact(releaseHandoffPath, { required: ["artifact-evidence", "gate-traceability", "candidate-journey-evidence", "runtime-diagnostics-evidence", "status", "release-validated"], trueFields: ["release-validated"] })) {
                   console.log("Release artifact contract is incomplete; Growth and production remain blocked.");
                   exitCode = 2;
                   return 2;

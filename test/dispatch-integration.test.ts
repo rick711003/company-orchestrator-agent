@@ -38,7 +38,7 @@ const check = (label) => fs.writeFileSync(boardPath, fs.readFileSync(boardPath, 
 if (${JSON.stringify(role)} === "design" && workflow === "product-feature") {
   put("DESIGN_FLOW.md", "status: design-approved\\n");
   put("DESIGN_SPEC.md", "status: design-approved\\n");
-  put("PRODUCT_HANDOFF.design.md", "design-approved: true\\nflow-evidence: flow\\nmockup-evidence: mockup\\ndesign-version: design-v1\\n");
+  put("PRODUCT_HANDOFF.design.md", "design-approved: true\\nflow-evidence: flow\\nmockup-evidence: mockup\\njourney-spec-evidence: journeys\\naffordance-audit-evidence: affordances\\ndesign-version: design-v1\\n");
   check("Design —");
 } else if (["backend", "frontend", "ios", "android"].includes(${JSON.stringify(role)})) {
   if (${JSON.stringify(role)} === "frontend" && scenario.frontend && scenario.frontend !== "pass") {
@@ -52,7 +52,7 @@ if (${JSON.stringify(role)} === "design" && workflow === "product-feature") {
   const label = ${JSON.stringify(role)} === "ios" ? "iOS" : ${JSON.stringify(role)}[0].toUpperCase() + ${JSON.stringify(role)}.slice(1);
   put("TECHNICAL_PLAN." + ${JSON.stringify(role)} + ".md", "requirement: R-1\\n");
   put("TASK_LEDGER." + ${JSON.stringify(role)} + ".md", "status: completed\\n");
-  put("PRODUCT_HANDOFF." + ${JSON.stringify(role)} + ".md", "ready-for-design-review: true\\nruntime-evidence: runtime.png\\ntest-evidence: test.log\\nfile-size-evidence: size.log\\n");
+  put("PRODUCT_HANDOFF." + ${JSON.stringify(role)} + ".md", "ready-for-design-review: true\\nruntime-evidence: runtime.png\\ntest-evidence: test.log\\njourney-evidence: journey.log\\nruntime-diagnostics-evidence: diagnostics.log\\nfile-size-evidence: size.log\\n");
   check(label + " —");
 } else if (${JSON.stringify(role)} === "product") {
   const crashMarker = path.join(cwd, "product-crashed-once");
@@ -60,16 +60,16 @@ if (${JSON.stringify(role)} === "design" && workflow === "product-feature") {
     fs.writeFileSync(crashMarker, "crashed\\n");
     process.exit(7);
   }
-  put("PRODUCT_HANDOFF.pm-runtime.md", "product-accepted: " + (scenario.product !== "reject") + "\\nrequirement-traceability: R-1\\nruntime-evidence: runtime.png\\n");
+  put("PRODUCT_HANDOFF.pm-runtime.md", "product-accepted: " + (scenario.product !== "reject") + "\\nrequirement-traceability: R-1\\nruntime-evidence: runtime.png\\nsession-evidence: session.log\\nmicro-quality-evidence: details.log\\n");
 } else if (${JSON.stringify(role)} === "design" && workflow === "runtime-acceptance") {
-  put("PRODUCT_HANDOFF.design-runtime.md", "design-accepted: " + (scenario.design === "accept") + "\\nsurface-traceability: settings.alert\\nruntime-evidence: runtime.png\\n");
+  put("PRODUCT_HANDOFF.design-runtime.md", "design-accepted: " + (scenario.design === "accept") + "\\nsurface-traceability: settings.alert\\nruntime-evidence: runtime.png\\njourney-evidence: journey.log\\naffordance-evidence: affordance.log\\ntransition-evidence: transition.log\\n");
   if (scenario.design === "accept") put("SURFACE_INVENTORY.md", "| Surface/state | Platform | Owner | Design | Tokens/assets | Runtime ID | Screenshot | Test | Design acceptance | QA | Release |\\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\\n| settings.alert | iOS | iOS | design-v1 | tokens-v1 | runtime.id | runtime.png | UI-1 | accepted | pending | pending |\\n");
 } else if (${JSON.stringify(role)} === "qa") {
   put("QA_TEST_SPEC.md", "status: qa-approved\\nrequirement: R-1\\n");
-  put("PRODUCT_HANDOFF.qa.md", "qa-passed: " + (scenario.qa === "pass") + "\\ntest-spec-evidence: QA_TEST_SPEC.md\\ntest-evidence: qa.log\\nrelease-ready: " + (scenario.qa === "pass") + "\\n");
+  put("PRODUCT_HANDOFF.qa.md", "qa-passed: " + (scenario.qa === "pass") + "\\ntest-spec-evidence: QA_TEST_SPEC.md\\ntest-evidence: qa.log\\nexploratory-session-evidence: exploratory.log\\nstate-transition-evidence: transitions.log\\naffordance-evidence: affordances.log\\nruntime-diagnostics-evidence: diagnostics.log\\nrelease-ready: " + (scenario.qa === "pass") + "\\n");
 } else if (${JSON.stringify(role)} === "release") {
   if (!task.includes("never publish")) process.exit(9);
-  put("PRODUCT_HANDOFF.release.md", "release-validated: true\\nstatus: awaiting-manual-release\\nartifact-evidence: archive\\ngate-traceability: R-1\\n");
+  put("PRODUCT_HANDOFF.release.md", "release-validated: true\\nstatus: awaiting-manual-release\\nartifact-evidence: archive\\ngate-traceability: R-1\\ncandidate-journey-evidence: candidate-journey.log\\nruntime-diagnostics-evidence: diagnostics.log\\n");
 } else if (${JSON.stringify(role)} === "growth") {
   if (!task.includes("never publish") || !task.includes("never publish, contact anyone, spend money")) process.exit(9);
   put("PRODUCT_HANDOFF.growth.md", "campaign-ready: true\\nstatus: awaiting-human-approval\\naudience: ledger users\\nclaims-evidence: R-1\\napproved-asset-references: design-v1\\nchannels: app store draft\\nmeasurement: activation\\nprivacy-consent-constraints: no contact\\n");

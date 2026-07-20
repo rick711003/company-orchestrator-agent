@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; import test from "node:test";
 test("runtime prompt enforces orchestration rather than impersonating PM", () => { const source = readFileSync(new URL("../src/core/team.ts", import.meta.url), "utf8"); assert.match(source, /company orchestration team/); assert.match(source, /Surface Inventory/); assert.match(source, /Auto-notify/); assert.doesNotMatch(source, /operating as a product management team/); });
+test("runtime prompt blocks isolated evidence and reused verdicts", () => { const source = readFileSync(new URL("../src/core/team.ts", import.meta.url), "utf8"); assert.match(source, /independent continuous-session evidence/); assert.match(source, /Isolated screens, green builds, or reused verdicts block advancement/); });
 test("portfolio and release workflows retain orchestration identities", () => { assert.match(readFileSync(new URL("../src/workflows/portfolio-status.ts", import.meta.url), "utf8"), /id: "portfolio-status"/); assert.match(readFileSync(new URL("../src/workflows/release-coordination.ts", import.meta.url), "utf8"), /id: "release-coordination"/); });
 
 test("dispatch includes iOS, Android, Web, and Backend in the same evidence loop", () => {
@@ -30,4 +31,17 @@ test("dispatch includes iOS, Android, Web, and Backend in the same evidence loop
   assert.match(source, /artifactFingerprint/);
   assert.match(source, /agentTimeoutMs/);
   assert.match(source, /pendingDevelopment/);
+  assert.match(source, /journey-spec-evidence/);
+  assert.match(source, /journey-evidence/);
+  assert.match(source, /exploratory-session-evidence/);
+  assert.match(source, /state-transition-evidence/);
+  assert.match(source, /candidate-journey-evidence/);
+  assert.match(source, /Isolated destination assertions/);
+});
+
+test("operating standard keeps the human owner out of exploratory QA", () => {
+  const source = readFileSync(new URL("../OPERATING_STANDARD.md", import.meta.url), "utf8");
+  assert.match(source, /continuous-session scenarios/);
+  assert.match(source, /fresh-state, realistic-persisted-state/);
+  assert.match(source, /instead of asking the human owner/);
 });

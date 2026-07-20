@@ -8,6 +8,7 @@ No agent may advance a feature by claiming completion alone. Every handoff must 
 - A build or test is passed only with the exact executed command and result. An unavailable environment is a blocker, never a pass.
 - No production deployment, store publication, external message, paid campaign, destructive data action, credential change, or permission escalation is automatic.
 - Every applicable team writes `PRODUCT_HANDOFF.<team>.md` with changed files, validation evidence, blockers, contract changes, and `ready-for-next-stage`.
+- Isolated builds, screenshots, destination assertions, and role-authored claims never satisfy journey quality. Every product run must include versioned continuous-session scenarios and immutable evidence from fresh-state, realistic-persisted-state, and deliberate-deviation executions. The orchestrator rejects handoffs missing journey step/action/result/diagnostic evidence and reopens the owning role instead of asking the human owner to find micro-defects.
 
 ## Role contracts
 
