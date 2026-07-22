@@ -13,6 +13,9 @@ Own cross-functional execution for the company workspace. The orchestrator seque
 - If an agent lacks a needed capability, update that agent's contract instead of compensating ad hoc.
 - Never publish content, send outreach, spend money, alter campaigns, or contact customers or investors without explicit human authorization.
 - Never convert release into an automatic action; release stays manual even when everything else is automated.
+- Enforce the five responsibility lines in `RESPONSIBILITY_LINES.md`: post-release closure, separate human authorities, security/privacy/data governance, analytics contracts, and support/VOC routing.
+- Never combine production, store, content, contact, spend, or production-data approval. Verify scope, artifact identity, expiry, and revocation independently.
+- After externally evidenced deployment, route production verification, stabilization, analytics and support review, and PM outcome closure. A release-ready candidate is not a completed product run.
 
 ## Evidence
 

@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { writeCompanyDag } from "./dispatch.ts";
+import { evaluateCapabilityLedger } from "../core/capability-ledger.ts";
 
 export interface DeliveryStatus {
   run: string;
@@ -8,6 +10,7 @@ export interface DeliveryStatus {
   attempts: Record<string, number>;
   lastActivity?: string;
   manualGate: boolean;
+  pendingApprovals: string[];
 }
 
 function accepted(directory: string, file: string, pattern: RegExp): boolean {
@@ -15,9 +18,28 @@ function accepted(directory: string, file: string, pattern: RegExp): boolean {
   return existsSync(path) && pattern.test(readFileSync(path, "utf8"));
 }
 
+const approvalActions = ["production-deploy", "store-submission", "external-content", "customer-contact", "campaign-spend", "production-data-change"];
+
+function scopedApproval(directory: string, action: string): boolean {
+  const path = join(directory, "MANUAL_APPROVALS.md");
+  if (!existsSync(path)) return false;
+  const content = `${readFileSync(path, "utf8")}\n## end\n`;
+  const section = content.match(new RegExp(`^## ${action}\\s*$([\\s\\S]*?)(?=^## )`, "im"))?.[1] ?? "";
+  const expiry = section.match(/^expires-at:\s*(\S+)/im)?.[1];
+  return /^approved:\s*true\s*$/im.test(section)
+    && /^approver:\s*\S/im.test(section)
+    && /^scope:\s*\S/im.test(section)
+    && /^artifact-version:\s*\S/im.test(section)
+    && /^target:\s*\S/im.test(section)
+    && /^approved-at:\s*\S/im.test(section)
+    && /^revoked:\s*false\s*$/im.test(section)
+    && Boolean(expiry && !Number.isNaN(Date.parse(expiry)) && Date.parse(expiry) > Date.now());
+}
+
 export function buildDeliveryStatus(workspace: string, run: string): DeliveryStatus {
   const directory = join(resolve(workspace), ".product-manager-agent", "runs", run);
   if (!existsSync(directory)) throw new Error(`Delivery run not found: ${directory}`);
+  writeCompanyDag(directory);
   const automationPath = join(directory, "AUTOMATION_STATE.json");
   const automation = existsSync(automationPath)
     ? JSON.parse(readFileSync(automationPath, "utf8")) as { attempts?: Record<string, number>; updatedAt?: string }
@@ -28,6 +50,15 @@ export function buildDeliveryStatus(workspace: string, run: string): DeliverySta
   const designRuntime = accepted(directory, "PRODUCT_HANDOFF.design-runtime.md", /design-accepted:\s*true/i);
   const productRuntime = accepted(directory, "PRODUCT_HANDOFF.pm-runtime.md", /product-accepted:\s*true/i);
   const design = accepted(directory, "PRODUCT_HANDOFF.design.md", /design-approved:\s*true/i);
+  const approvals = Object.fromEntries(approvalActions.map((action) => [action, scopedApproval(directory, action)]));
+  const pendingApprovals = approvalActions.filter((action) => !approvals[action]);
+  const deployment = accepted(directory, "PRODUCTION_DEPLOYMENT.md", /deployed:\s*true/i)
+    && accepted(directory, "PRODUCTION_DEPLOYMENT.md", /artifact-evidence:\s*\S/i);
+  const production = accepted(directory, "PRODUCT_HANDOFF.production.md", /production-verified:\s*true/i);
+  const stabilized = accepted(directory, "PRODUCT_HANDOFF.production.md", /stabilization-complete:\s*true/i);
+  const outcomeClosed = accepted(directory, "PRODUCT_HANDOFF.outcome-review.md", /decision:\s*close/i);
+  const outcomeReopened = accepted(directory, "PRODUCT_HANDOFF.outcome-review.md", /decision:\s*(?:reopen|rollback)/i);
+  const capabilityCoverage = evaluateCapabilityLedger(directory);
   const boardPath = join(directory, "DELIVERY_BOARD.md");
   const board = existsSync(boardPath) ? readFileSync(boardPath, "utf8") : "";
   const applicableTeams = ["backend", "frontend", "ios", "android"].filter((team) => {
@@ -47,11 +78,22 @@ export function buildDeliveryStatus(workspace: string, run: string): DeliverySta
   if (qa) { phase = "release-validation"; nextAction = "Release must validate final artifacts"; }
   if (release && !growth) { phase = "growth-handoff"; nextAction = "Growth must prepare an evidence-backed draft package"; }
   if (release && growth) {
-    phase = "awaiting-human-release";
-    nextAction = "Human may approve production release and external Growth actions";
+    phase = "awaiting-production-deploy-approval";
+    nextAction = "Record a scoped production-deploy approval; other external authorities remain independent";
     manualGate = true;
   }
-  return { run, phase, nextAction, attempts: automation.attempts ?? {}, lastActivity: automation.updatedAt, manualGate };
+  if (release && growth && approvals["production-deploy"]) {
+    phase = "approved-awaiting-external-deployment";
+    nextAction = "Perform only the approved deployment scope and attach external deployment evidence";
+    manualGate = false;
+  }
+  if (deployment) { phase = "production-verification"; nextAction = "Release and affected Engineering must verify production; QA verifies independently"; }
+  if (production && !stabilized) { phase = "stabilization"; nextAction = "Observe telemetry, security/data, analytics guardrails, incidents, and support severity"; }
+  if (production && stabilized) { phase = "outcome-review"; nextAction = "Product must decide close, continue-observation, rollback, or reopen from current evidence"; }
+  if (outcomeReopened) { phase = "reopened"; nextAction = "Orchestrator must invalidate affected gates and route corrective work"; }
+  if (outcomeClosed && !capabilityCoverage.complete) { phase = "capability-review"; nextAction = `Resolve professional capability gaps: ${capabilityCoverage.findings.join("; ")}`; }
+  if (outcomeClosed && capabilityCoverage.complete) { phase = "completed"; nextAction = "Run closed with production, outcome, and professional capability evidence"; }
+  return { run, phase, nextAction, attempts: automation.attempts ?? {}, lastActivity: automation.updatedAt, manualGate, pendingApprovals };
 }
 
 export function runDeliveryStatusCommand(args: string[]): number {
@@ -67,6 +109,6 @@ export function runDeliveryStatusCommand(args: string[]): number {
   if (!run || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(run)) throw new Error("delivery-status requires a valid --run ID.");
   const status = buildDeliveryStatus(workspace, run);
   if (json) console.log(JSON.stringify(status, null, 2));
-  else console.log(`Run: ${status.run}\nPhase: ${status.phase}\nNext: ${status.nextAction}\nAttempts: ${JSON.stringify(status.attempts)}\nManual gate: ${status.manualGate ? "yes" : "no"}`);
+  else console.log(`Run: ${status.run}\nPhase: ${status.phase}\nNext: ${status.nextAction}\nAttempts: ${JSON.stringify(status.attempts)}\nManual gate: ${status.manualGate ? "yes" : "no"}\nPending independent approvals: ${status.pendingApprovals.join(", ") || "none"}`);
   return 0;
 }

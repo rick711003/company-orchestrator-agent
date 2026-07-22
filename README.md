@@ -5,12 +5,13 @@ Frontend, iOS, Android, QA, Release, Growth, and Orchestration.
 
 ## Delivery loop
 
-`PM contract → Design contract → Engineering → Product acceptance → runtime Design acceptance → QA → Release validation → Growth draft → human release/external-action gate`
+`PM + governance contracts → Design → Engineering → Product/Design acceptance → QA → Release validation → Growth draft → scoped human approval → external deployment evidence → production verification → stabilization → PM close/reopen`
 
 Internal planning, implementation, testing, independent review, notifications, and
 rework use `--auto-approve`. Production deployment, store submission, spending,
 external contact, destructive production data changes, and Growth publication remain
-human-controlled.
+human-controlled and independently approved. Every role also runs its own versioned
+internal dependency graph; failures reopen only affected nodes and descendants.
 
 ## Commands
 
@@ -18,18 +19,18 @@ human-controlled.
 npm install
 npm run build
 
-node bin/company-orchestrator.js discover --root ..
+node bin/company-orchestrator.js discover --root ../../..
 node bin/company-orchestrator.js dispatch \
-  --workspace ../MyProduct \
+  --workspace ../../../MyProduct \
   --run RUN_ID \
   --agents-root .. \
   --agent-timeout-ms 1800000 \
   --execute
 node bin/company-orchestrator.js delivery-status \
-  --workspace ../MyProduct \
+  --workspace ../../../MyProduct \
   --run RUN_ID
 node bin/company-orchestrator.js qa-gate \
-  --workspace ../MyProduct \
+  --workspace ../../../MyProduct \
   --run RUN_ID
 ```
 

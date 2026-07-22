@@ -1,4 +1,6 @@
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
+
+export interface AgentProcessResult { status: number | null; signal: NodeJS.Signals | null; error?: Error }
 
 const externalCredential = /^(?:AWS_|AZURE_|GOOGLE_|GCP_|GH_|GITHUB_|STRIPE_|SLACK_|SMTP_|SENDGRID_|TWILIO_|VERCEL_|NETLIFY_|CLOUDFLARE_|SSH_AUTH_SOCK$)/i;
 
@@ -24,7 +26,23 @@ export function runAgent(command: string[], workspace: string, role: string, tim
   });
 }
 
-export function agentFailure(result: SpawnSyncReturns<Buffer>, role: string): string | undefined {
+export function runAgentAsync(command: string[], workspace: string, role: string, timeoutMs: number): Promise<AgentProcessResult> {
+  return new Promise((resolve) => {
+    const child = spawn("node", command, { cwd: workspace, env: isolatedAgentEnvironment(role), shell: false, stdio: "inherit" });
+    let timedOut = false;
+    let settled = false;
+    const timer = setTimeout(() => { timedOut = true; child.kill("SIGTERM"); setTimeout(() => child.kill("SIGKILL"), 2_000).unref(); }, timeoutMs);
+    child.on("error", (error) => { if (!settled) { settled = true; clearTimeout(timer); resolve({ status: null, signal: null, error }); } });
+    child.on("close", (status, signal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ status, signal, error: timedOut ? Object.assign(new Error(`${role} timed out`), { code: "ETIMEDOUT" }) : undefined });
+    });
+  });
+}
+
+export function agentFailure(result: SpawnSyncReturns<Buffer> | AgentProcessResult, role: string): string | undefined {
   if (result.error && "code" in result.error && result.error.code === "ETIMEDOUT") return `${role} timed out`;
   if (result.error) return `${role} failed to start: ${result.error.message}`;
   if (result.signal) return `${role} terminated by ${result.signal}`;

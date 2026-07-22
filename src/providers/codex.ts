@@ -1,5 +1,5 @@
 import type { AgentProvider, ProviderRunOptions } from "./provider.ts";
-import { commandExists, runCommand } from "./process.ts";
+import { commandExists, runCommand, runCommandAsync } from "./process.ts";
 
 export class CodexProvider implements AgentProvider {
   readonly name = "codex" as const;
@@ -13,6 +13,10 @@ export class CodexProvider implements AgentProvider {
   run(options: ProviderRunOptions): { exitCode: number; output: string } {
     const args = createCodexArgs(options);
     return runCommand("codex", args, options.cwd, options.dryRun);
+  }
+
+  runAsync(options: ProviderRunOptions, timeoutMs?: number, signal?: AbortSignal): Promise<{ exitCode: number; output: string }> {
+    return runCommandAsync("codex", createCodexArgs(options), options.cwd, options.dryRun, timeoutMs, signal);
   }
 }
 

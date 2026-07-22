@@ -43,15 +43,15 @@ Options:
   -p, --provider <name>  Provider: codex or claude (default: codex)
   -C, --cwd <path>       Product workspace (default: current directory)
       --dry-run          Preview provider commands without model calls
-      --write            Allow scoped growth deliverable or product edits in a Git workspace
+      --write            Allow scoped orchestration artifacts or product edits in a Git workspace
   -w, --workflow <id>    Workflow (default: portfolio-status)
   -h, --help             Show help
   -v, --version          Show version
 
 Examples:
-  company-orchestrator --provider claude "Find the strongest launch audience for our iOS app"
-  company-orchestrator run start --cwd ../product --workflow feature-planning "Design a referral experiment"
-  company-orchestrator run start --write --workflow release-coordination "Draft the approved app launch campaign"`);
+  company-orchestrator --provider claude "Audit blockers across the product portfolio"
+  company-orchestrator run start --cwd ../product --workflow cross-agent-delivery "Coordinate account recovery"
+  company-orchestrator run start --write --workflow release-coordination "Validate release and post-release responsibilities"`);
 }
 
 function requireValue(args: string[], index: number, option: string): string {
@@ -85,15 +85,15 @@ function validateWorkspace(cwd: string, accessMode: AccessMode): void {
   if (accessMode === "write" && spawnSync("git", ["-C", cwd, "rev-parse", "--is-inside-work-tree"], { stdio: "ignore" }).status !== 0) throw new Error("Write mode requires a Git repository.");
 }
 
-function main(args: string[]): void {
+async function main(args: string[]): Promise<void> {
   try {
     if (args[0] === "workflow") { process.exitCode = runWorkflowCommand(args.slice(1)); return; }
     if (args[0] === "team") { process.exitCode = runTeamCommand(args.slice(1)); return; }
-    if (args[0] === "run") { process.exitCode = runTeamRunCommand(args.slice(1)); return; }
+    if (args[0] === "run") { process.exitCode = await runTeamRunCommand(args.slice(1)); return; }
     if (args[0] === "doctor") { process.exitCode = runDoctorCommand(); return; }
     if (args[0] === "discover") { process.exitCode = runDiscoverCommand(args.slice(1)); return; }
     if (args[0] === "qa-gate") { process.exitCode = runQaGateCommand(args.slice(1)); return; }
-    if (args[0] === "dispatch") { process.exitCode = runDispatchCommand(args.slice(1)); return; }
+    if (args[0] === "dispatch") { process.exitCode = await runDispatchCommand(args.slice(1)); return; }
     if (args[0] === "delivery-status") { process.exitCode = runDeliveryStatusCommand(args.slice(1)); return; }
     const options = parseArgs(args); if (!options) return;
     validateWorkspace(options.cwd, options.accessMode);
@@ -106,4 +106,4 @@ function main(args: string[]): void {
   } catch (error) { console.error(`Error: ${error instanceof Error ? error.message : String(error)}`); process.exitCode = 1; }
 }
 
-main(process.argv.slice(2));
+void main(process.argv.slice(2));

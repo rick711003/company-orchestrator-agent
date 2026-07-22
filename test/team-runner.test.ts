@@ -28,11 +28,11 @@ function fakeFactory(calls: Call[]) {
   });
 }
 
-test("a write run pauses for approval then resumes independent roles", () => {
+test("a write run pauses for approval then resumes independent roles", async () => {
   const workspace = mkdtempSync(join(tmpdir(), "product-manager-agent-run-"));
   const calls: Call[] = [];
   try {
-    const paused = startTeamRun(
+    const paused = await startTeamRun(
       {
         task: "Build login",
         workspace,
@@ -49,7 +49,7 @@ test("a write run pauses for approval then resumes independent roles", () => {
     assert.equal(calls.length, 2);
     assert.ok(calls.every((call) => call.options.accessMode === "plan"));
 
-    const completed = resumeTeamRun(
+    const completed = await resumeTeamRun(
       { workspace, runId: paused.id, approve: true },
       fakeFactory(calls),
     );
@@ -69,11 +69,11 @@ test("a write run pauses for approval then resumes independent roles", () => {
   }
 });
 
-test("auto-approve completes a write run without broadening non-strategist access", () => {
+test("auto-approve completes a write run without broadening non-strategist access", async () => {
   const workspace = mkdtempSync(join(tmpdir(), "product-manager-agent-run-"));
   const calls: Call[] = [];
   try {
-    const state = startTeamRun(
+    const state = await startTeamRun(
       {
         task: "Build settings",
         workspace,
@@ -94,7 +94,7 @@ test("auto-approve completes a write run without broadening non-strategist acces
   }
 });
 
-test("a failed stage is persisted and can be retried", () => {
+test("a failed stage is persisted and can be retried", async () => {
   const workspace = mkdtempSync(join(tmpdir(), "product-manager-agent-run-"));
   let shouldFail = true;
   const factory = (name: ProviderName): AgentProvider => ({
@@ -109,7 +109,7 @@ test("a failed stage is persisted and can be retried", () => {
     },
   });
   try {
-    const failed = startTeamRun(
+    const failed = await startTeamRun(
       {
         task: "Investigate",
         workspace,
@@ -122,7 +122,7 @@ test("a failed stage is persisted and can be retried", () => {
     assert.equal(failed.status, "failed");
     assert.equal(failed.stages[0].exitCode, 7);
 
-    const recovered = resumeTeamRun({ workspace, runId: failed.id }, factory);
+    const recovered = await resumeTeamRun({ workspace, runId: failed.id }, factory);
     assert.equal(recovered.status, "completed");
   } finally {
     rmSync(workspace, { recursive: true, force: true });
@@ -138,10 +138,10 @@ test("rejects traversal run IDs before reading state", () => {
   }
 });
 
-test("rejects state that redirects writes outside the selected workspace", () => {
+test("rejects state that redirects writes outside the selected workspace", async () => {
   const workspace = mkdtempSync(join(tmpdir(), "product-manager-agent-run-"));
   try {
-    const state = startTeamRun(
+    const state = await startTeamRun(
       {
         task: "Inspect",
         workspace,
@@ -160,10 +160,10 @@ test("rejects state that redirects writes outside the selected workspace", () =>
   }
 });
 
-test("rejects artifact paths that escape the run directory", () => {
+test("rejects artifact paths that escape the run directory", async () => {
   const workspace = mkdtempSync(join(tmpdir(), "product-manager-agent-run-"));
   try {
-    const state = startTeamRun(
+    const state = await startTeamRun(
       {
         task: "Inspect",
         workspace,

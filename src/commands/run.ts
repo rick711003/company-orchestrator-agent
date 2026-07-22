@@ -29,10 +29,12 @@ interface RunOptions {
   roleProviders: Partial<Record<AgentRole, ProviderName>>;
   autoApprove: boolean;
   approve: boolean;
+  approvalStage?: string;
+  cancel: boolean;
   dryRun: boolean;
   task: string;
   billing: "subscription" | "api";
-  designerRate?: number;
+  productManagerRate?: number;
   hoursSaved?: number;
   runsPerMonth: number;
 }
@@ -67,6 +69,7 @@ function parseRunOptions(args: string[]): RunOptions {
     roleProviders: {},
     autoApprove: false,
     approve: false,
+    cancel: false,
     dryRun: false,
     task: "",
     billing: "subscription",
@@ -95,6 +98,12 @@ function parseRunOptions(args: string[]): RunOptions {
       options.autoApprove = true;
     } else if (argument === "--approve") {
       options.approve = true;
+    } else if (argument === "--approve-stage") {
+      options.approvalStage = requireValue(args, index, argument);
+      options.approve = true;
+      index += 1;
+    } else if (argument === "--cancel") {
+      options.cancel = true;
     } else if (argument === "--dry-run") {
       options.dryRun = true;
     } else if (argument === "--billing") {
@@ -107,7 +116,7 @@ function parseRunOptions(args: string[]): RunOptions {
     } else if (argument === "--product-manager-rate" || argument === "--hours-saved" || argument === "--runs-per-month") {
       const parsed = Number(requireValue(args, index, argument));
       if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`${argument} must be a positive number.`);
-      if (argument === "--product-manager-rate") options.designerRate = parsed;
+      if (argument === "--product-manager-rate") options.productManagerRate = parsed;
       if (argument === "--hours-saved") options.hoursSaved = parsed;
       if (argument === "--runs-per-month") options.runsPerMonth = parsed;
       index += 1;
@@ -173,11 +182,11 @@ function printEstimate(options: RunOptions): void {
     }
     console.log(`API total: ${formatUsdRange(total)}`);
     console.log(`Rate cards checked: ${Object.values(apiRateCards).map((rate) => rate.checkedAt).sort().at(-1)}`);
-    if ((options.designerRate === undefined) !== (options.hoursSaved === undefined)) {
+    if ((options.productManagerRate === undefined) !== (options.hoursSaved === undefined)) {
       throw new Error("ROI requires both --product-manager-rate and --hours-saved.");
     }
-    if (options.designerRate !== undefined && options.hoursSaved !== undefined) {
-      const roi = estimateRoi(total.typical, options.designerRate, options.hoursSaved, options.runsPerMonth);
+    if (options.productManagerRate !== undefined && options.hoursSaved !== undefined) {
+      const roi = estimateRoi(total.typical, options.productManagerRate, options.hoursSaved, options.runsPerMonth);
       const money = (value: number) => `$${value.toFixed(2)}`;
       console.log("Investment estimate (typical API cost)");
       console.log(`- Human value per run: ${money(roi.valuePerRun)}`);
@@ -191,7 +200,7 @@ function printEstimate(options: RunOptions): void {
   console.log("Planning estimate only: repository size, actual model, caching, retries, tool fees, taxes, and task complexity change cost.\n");
 }
 
-export function runTeamRunCommand(args: string[]): number {
+export async function runTeamRunCommand(args: string[]): Promise<number> {
   const [action, identifier, ...rest] = args;
   if (!action || action === "help" || action === "--help" || action === "-h") {
     console.log(`Team run commands
@@ -199,7 +208,7 @@ export function runTeamRunCommand(args: string[]): number {
 Usage:
   company-orchestrator run start [options] <task>
   company-orchestrator run estimate [options] <task>
-  company-orchestrator run resume <id> --cwd <path> [--approve]
+  company-orchestrator run resume <id> --cwd <path> [--approve|--approve-stage <id>|--cancel]
   company-orchestrator run status <id> --cwd <path>
   company-orchestrator run list --cwd <path>
 
@@ -208,15 +217,15 @@ Start options:
   -p, --provider <name>        Default provider: codex or claude
   -w, --workflow <id>          Workflow (default: portfolio-status)
       --role-provider <r>=<p>  Override a role provider; repeatable
-      --write                  Permit only marketer stages to edit
-      --auto-approve           Skip the growth strategy checkpoint for this run
+      --write                  Permit scoped orchestration artifacts or product edits
+      --auto-approve           Continue reversible internal graph nodes without pausing
       --dry-run                Persist a run using provider command previews
       --billing <mode>         subscription (default) or api cost estimate
       --product-manager-rate <usd>    Fully loaded product management cost per hour
       --hours-saved <hours>    Expected product management hours saved per run
       --runs-per-month <count> Monthly volume for ROI projection
 
-Roles: coordinator, researcher, marketer, analyst, reviewer`);
+Roles: coordinator, researcher, strategist, delivery, reviewer`);
     return 0;
   }
 
@@ -241,12 +250,14 @@ Roles: coordinator, researcher, marketer, analyst, reviewer`);
     const options = parseRunOptions(rest);
     const saved = loadTeamRun(options.cwd, identifier);
     validateWorkspace(options.cwd, saved.accessMode === "write");
-    const state = resumeTeamRun({
+    const state = await resumeTeamRun({
       workspace: options.cwd,
       runId: identifier,
       approve: options.approve,
+      approvalStage: options.approvalStage,
       autoApprove: options.autoApprove,
       dryRun: options.dryRun,
+      cancel: options.cancel,
     });
     printState(state);
     return state.status === "failed" ? 1 : 0;
@@ -266,7 +277,7 @@ Roles: coordinator, researcher, marketer, analyst, reviewer`);
   const workflow = getWorkflow(options.workflowId);
   if (!workflow) throw new Error(`Unknown workflow "${options.workflowId}".`);
   printEstimate(options);
-  const state = startTeamRun({
+  const state = await startTeamRun({
     task: options.task,
     workspace: options.cwd,
     workflow,

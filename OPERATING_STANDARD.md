@@ -43,4 +43,8 @@ Require QA evidence, version/migration order, environment validation, rollback p
 
 Verify required artifacts and gates before dispatching another team. Treat missing evidence as blocked, summarize ownership and dependencies, dispatch only applicable teams, and never bypass the manual release gate.
 
+### Cross-functional governance
+
+Apply `RESPONSIBILITY_LINES.md` to every applicable run. Require versioned security/data and analytics contracts before affected implementation, separate action-specific human approvals before irreversible work, and a routed support/VOC log. After deployment evidence exists, keep the run open through production verification, stabilization, and PM outcome review; only an evidence-backed `close` decision completes it.
+
 Before dispatching, verify the applicable role's delivery-standard artifact is present in its agent repository. Before QA, verify each required `PRODUCT_HANDOFF.<team>.md` reports actual build/test evidence; a missing or false `ready-for-qa` status blocks progression.

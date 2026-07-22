@@ -1,5 +1,5 @@
 import type { AgentProvider, ProviderRunOptions } from "./provider.ts";
-import { commandExists, runCommand } from "./process.ts";
+import { commandExists, runCommand, runCommandAsync } from "./process.ts";
 
 export class ClaudeProvider implements AgentProvider {
   readonly name = "claude" as const;
@@ -19,6 +19,10 @@ export class ClaudeProvider implements AgentProvider {
       options.cwd,
       options.dryRun,
     );
+  }
+
+  runAsync(options: ProviderRunOptions, timeoutMs?: number, signal?: AbortSignal): Promise<{ exitCode: number; output: string }> {
+    return runCommandAsync("claude", createClaudeArgs(options), options.cwd, options.dryRun, timeoutMs, signal);
   }
 }
 

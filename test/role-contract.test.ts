@@ -45,3 +45,16 @@ test("operating standard keeps the human owner out of exploratory QA", () => {
   assert.match(source, /fresh-state, realistic-persisted-state/);
   assert.match(source, /instead of asking the human owner/);
 });
+
+test("orchestration skill, responsibility lines, and internal graph stay role-specific", () => {
+  const skill = readFileSync(new URL("../integrations/codex/company-orchestrator-agent/SKILL.md", import.meta.url), "utf8");
+  const responsibilities = readFileSync(new URL("../RESPONSIBILITY_LINES.md", import.meta.url), "utf8");
+  const graph = readFileSync(new URL("../INTERNAL_GRAPH_STANDARD.md", import.meta.url), "utf8");
+  const cli = readFileSync(new URL("../src/commands/run.ts", import.meta.url), "utf8");
+  assert.match(skill, /Coordinate evidence-backed delivery/);
+  assert.doesNotMatch(skill, /ASO|company orchestration-experiment|product-company orchestration/);
+  for (const line of ["Post-release closed loop", "Separate human authorities", "Security, privacy, and data governance", "Analytics contract", "Customer support and voice-of-customer loop"]) assert.match(responsibilities, new RegExp(line, "i"));
+  assert.match(graph, /dependency graph/);
+  assert.match(graph, /reopens only itself and descendants/);
+  assert.doesNotMatch(cli, /growth strategy checkpoint|marketer, analyst/);
+});

@@ -17,4 +17,5 @@ export interface AgentProvider {
   name: ProviderName;
   assertAvailable(): void;
   run(options: ProviderRunOptions): ProviderRunResult;
+  runAsync?(options: ProviderRunOptions, timeoutMs?: number, signal?: AbortSignal): Promise<ProviderRunResult>;
 }
